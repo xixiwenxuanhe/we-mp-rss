@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { getToken } from '@/utils/auth'
 import { Message } from '@arco-design/web-vue'
+import router from '@/router'
 // 创建axios实例
 const http = axios.create({
   baseURL: (import.meta.env.VITE_API_BASE_URL || '') + 'api/v1/',
@@ -33,19 +34,21 @@ http.interceptors.response.use(
       return response.data.data||response.data.detail
     }
     const data=response.data?.detail||response.data
-
-    const errorMsg = data?.message || '请求失败'
-    Message.error(errorMsg)
+    // const errorMsg = data?.message || '请求失败'
+    // Message.error(errorMsg)
     return Promise.reject(response.data)
   },
   error => {
+     if(error.status==401){
+      router.push("/login")
+    } 
     console.log(error)
     // 统一错误处理
     const errorMsg = error?.message||error.response?.data?.message || 
                     error.response?.data?.detail || 
                     error.message || 
                     '请求错误'
-    Message.error(errorMsg)
+    // Message.error(errorMsg)
     return Promise.reject(errorMsg)
   }
 )

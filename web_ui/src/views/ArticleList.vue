@@ -275,7 +275,6 @@ const fetchMpList = async () => {
       mpPagination.value.total = res.total || 0
   } catch (error) {
     console.error('获取公众号列表错误:', error)
-    Message.error(error.message)
   } finally {
     mpLoading.value = false
   }

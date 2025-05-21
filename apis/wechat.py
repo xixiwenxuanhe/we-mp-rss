@@ -5,6 +5,10 @@ from core.wx import search_Biz
 from .base import success_response, error_response
 from datetime import datetime
 import core.config as cfg
+import uuid
+import os
+import requests
+from urllib.parse import urlparse
 router = APIRouter(prefix=f"/mps", tags=["公众号管理"])
 
 @router.get("/search/{kw}", summary="搜索公众号")
@@ -177,11 +181,13 @@ async def add_mp(
         
         import base64
         mpx_id = base64.b64decode(mp_id).decode("utf-8")
+        
+
         # 创建新的Feed记录
         new_feed = Feed(
             id=f"MP_WXS_{mpx_id}",
             mp_name=mp_name,
-            mp_cover=avatar,
+            mp_cover= avatar,
             mp_intro=mp_intro,
             status=1,  # 默认启用状态
             created_at=now,

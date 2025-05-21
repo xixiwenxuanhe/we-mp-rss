@@ -7,9 +7,9 @@ from typing import Optional
 from passlib.context import CryptContext
 from core.models import User as DBUser
 from core.db import DB
-
+import core.config as  cfg
 # 配置
-SECRET_KEY = "your-secret-key-here"  # 生产环境应使用更安全的密钥
+SECRET_KEY = cfg.get("secret","csol2025")  # 生产环境应使用更安全的密钥
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
