@@ -58,16 +58,18 @@ const handleSubmit = async () => {
       password: form.value.password
     })
     
-    if (res.access_token) {
-      // 存储token和过期时间
-      localStorage.setItem('token', res.access_token)
-      localStorage.setItem('token_expire', 
-        Date.now() + (res.expires_in * 1000))
-      
-      // 处理重定向
-      const redirect = router.currentRoute.value.query.redirect
-      await router.push(redirect ? redirect.toString() : '/')
-      Message.success('登录成功')
+          if (res.access_token) {
+            // 存储token和过期时间
+            localStorage.setItem('token', res.access_token)
+            localStorage.setItem('token_expire', 
+              Date.now() + (res.expires_in * 1000))
+        
+            console.log('Token stored:', localStorage.getItem('token')) // 调试日志
+        
+            // 处理重定向
+            const redirect = router.currentRoute.value.query.redirect
+            await router.push(redirect ? redirect.toString() : '/')
+            Message.success('登录成功')
     } else {
       throw new Error('无效的响应格式')
     }

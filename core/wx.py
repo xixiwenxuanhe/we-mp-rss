@@ -157,7 +157,8 @@ def update_mps(mp_id:str, mp:Feed):
         current_time = int(time.time())
         update_data = {
             'sync_time': current_time,
-            'updated_at': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            # 'updated_at': dateformat(current_time)
+            'updated_at': datetime.now(),
         }
         
         # 如果有新文章时间，也更新update_time

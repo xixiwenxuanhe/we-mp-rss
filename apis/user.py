@@ -28,7 +28,6 @@ async def get_user_info(current_user: dict = Depends(get_current_user)):
             "email": user.email if user.email else "",
             "role": user.role,
             "is_active": user.is_active,
-            "created_at": user.created_at.strftime("%Y-%m-%d %H:%M:%S")
         })
     finally:
         session.close()

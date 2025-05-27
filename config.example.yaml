@@ -6,7 +6,7 @@ db: ${DB:-sqlite:///db.db}
 
 #通知
 notice:
-  dingding: ${DINGDING:-''}
+  dingding: "${DINGDING_WEBHOOK:-''}"
 
 secret: ${SECRET:- 'we-mp-rss'}
 token: 

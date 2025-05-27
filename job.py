@@ -1,7 +1,7 @@
 import schedule, time
 import core.wx as wx 
 import core.db as db
-from core.config import cfg
+from core.config import DEBUG,cfg
 import core.notice as notice
 import random
 import core.log as log
@@ -26,7 +26,7 @@ def do_job():
         faker_id=item.faker_id
         mp_id=item.id
         print(f'正在更新公众号：{item.mp_name}({item.id})')
-        if not cfg.DEBUG:
+        if not DEBUG:
             # 获取对应公众号列表
             data=wx.get_list(faker_id,mp_id,0)
             for art in data:

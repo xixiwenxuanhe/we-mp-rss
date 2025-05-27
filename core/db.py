@@ -3,7 +3,7 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy import Column, Integer, String, DateTime
 from typing import Optional, List
 from .models import Feed, Article
-from .config import config as cfg
+from .config import cfg
 
 # 声明基类
 Base = declarative_base()
@@ -21,7 +21,7 @@ class Db:
             self.session = Session()
             
             # 自动创建表
-            self.create_tables()
+            # self.create_tables()
           
         except Exception as e:
             print(f"Error creating database connection: {e}")
@@ -45,12 +45,15 @@ class Db:
             
     def add_article(self, article_data: dict) -> bool:
         try:
+            from datetime import datetime
             art = Article(**article_data)
+            art.created_at=datetime.strptime(art.created_at,'%Y-%m-%d %H:%M:%S')
+            art.updated_at=datetime.strptime(art.updated_at,'%Y-%m-%d %H:%M:%S')
             self.session.add(art) 
             self.session.commit()
         except Exception as e:
             self.session.rollback()
-            print(f"Failed to add article: {e}")
+            print(f"Failed to add article: {e}",e)
             return False
         return True    
         

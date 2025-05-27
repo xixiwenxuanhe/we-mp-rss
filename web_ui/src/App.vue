@@ -4,10 +4,13 @@
     <a-layout-header class="app-header">
       <div class="header-left">
         <div class="logo">
+          <img  :src="logo" alt="avatar" :width="60" style="margin-right:1rem;">
           <router-link to="/">{{appTitle}}</router-link>
         </div>
       </div>
-      <div class="header-right">
+      <div class="header-right" v-if="hasLogined">
+        <a-link href="/api/docs" target="_blank" style="margin-right: 20px;">Docs</a-link>
+        <a-link href="https://github.com/rachelos/we-mp-rss" target="_blank" style="margin-right: 20px;">GitHub</a-link>
         <a-dropdown position="br" trigger="click">
           <div class="user-info">
             <a-avatar :size="36">
@@ -51,13 +54,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Message } from '@arco-design/web-vue'
 import { getCurrentUser } from '@/api/auth'
 import { logout } from '@/api/auth'
 const appTitle = computed(() => import.meta.env.VITE_APP_TITLE || '微信公众号订阅助手')
-
+const logo=ref("/static/logo.svg")
 const router = useRouter()
 const route = useRoute()
 const collapsed = ref(false)
@@ -65,9 +68,10 @@ const userInfo = ref({
   username: '',
   avatar: ''
 })
-
+const hasLogined=ref(false)
 const isAuthenticated = computed(() => {
-  return !!localStorage.getItem('token')
+    hasLogined.value = !!localStorage.getItem('token')
+  return hasLogined.value
 })
 
 const fetchUserInfo = async () => {
@@ -110,6 +114,17 @@ onMounted(() => {
     fetchUserInfo()
   }
 })
+
+watch(
+  () => route.path,
+  () => {
+    hasLogined.value = !!localStorage.getItem('token')
+    if (hasLogined.value) {
+      fetchUserInfo()
+    }
+  }
+)
+
 </script>
 
 <style scoped>

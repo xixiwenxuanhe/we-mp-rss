@@ -10,7 +10,7 @@ class User(Base):
     role = Column(String(20), default='user')  # admin/editor/user
     permissions = Column(JSON, default=list)  # 权限列表
     nickname = Column(String(50), default='')  # 昵称
-    avatar = Column(String(255), default='default-avatar.png')  # 头像
+    avatar = Column(String(255), default='/static/default-avatar.png')  # 头像
     email = Column(String(50), default='')
     
     # 原有字段保持不变

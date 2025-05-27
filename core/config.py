@@ -11,21 +11,20 @@ class Config:
         self.config_path = config_path or self.args.config
     def parse_args(self):
         parser = argparse.ArgumentParser()
-        parser.add_argument('-config', help='Path to config file', default='config.yaml')
-        parser.add_argument('-job', help='Start Job', default=False)
+        parser.add_argument('-config', help='配置文件', default='config.yaml')
+        parser.add_argument('-job', help='启动任务', default=False)
+        parser.add_argument('-init', help='初始化数据库,初始化用户', default=False)
         args, _ = parser.parse_known_args()
         return args
     def save_config(self):
         global config
         with open(self.config_path, 'w', encoding='utf-8') as f:
             yaml.dump(config, f)
-    def get_config(self):
-        
-        def replace_env_vars(data):
+    def replace_env_vars(self,data):
             if isinstance(data, dict):
-                return {k: replace_env_vars(v) for k, v in data.items()}
+                return {k: self.replace_env_vars(v) for k, v in data.items()}
             elif isinstance(data, list):
-                return [replace_env_vars(item) for item in data]
+                return [self.replace_env_vars(item) for item in data]
             elif isinstance(data, str):
                 try:
                     import re
@@ -39,11 +38,12 @@ class Config:
                 except:
                     return data
             return data
+    def get_config(self):
         global config
         try:
             with open(self.config_path, 'r', encoding='utf-8') as f:
                 config = yaml.safe_load(f)
-                config = replace_env_vars(config)
+                # config = self.replace_env_vars(config)
                 return config
         except Exception as e:
             print(f"Error loading configuration file {self.config_path}: {e}")
@@ -54,8 +54,9 @@ class Config:
         self.save_config()
     def get(self,key,default:any=None):
         global config
-        if key in config:
-            return config[key]
+        _config=self.replace_env_vars(config)
+        if key in _config:
+            return _config[key]
         else:
             print("Key {} not found in configuration".format(key))
             if default is not None:

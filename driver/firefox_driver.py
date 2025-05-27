@@ -224,7 +224,7 @@ class FirefoxController:
             self._install_firefox()
             self._setup_driver()
             
-            if headless:
+            if headless and  self.system != "windows":
                 self.options.add_argument("--headless")          # 启用无界面模式
                 self.options.add_argument("--disable-gpu")       # 禁用 GPU 加速
                 self.options.add_argument("--no-sandbox")        # 无沙盒模式（Linux 必需）
