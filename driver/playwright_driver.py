@@ -51,15 +51,16 @@ class PlaywrightController:
     def install(self,browser_name=browsers_name):
         try:
             from playwright.sync_api import sync_playwright
+            self._install_brower(browser_name=browsers_name)
+            return sync_playwright()
         except ImportError:
             print("检测到playwright未安装，正在自动安装...")
             subprocess.check_call([sys.executable, "-m", "pip", "install", "playwright"])
              # 如果上面安装playwright失败，这里重新安装
             subprocess.check_call([sys.executable, "-m", "pip", "install", "playwright"])
-            from playwright.sync_api import sync_playwright
-        
-        self._install_brower(browser_name=browsers_name)
+        from playwright.sync_api import sync_playwright
         return sync_playwright()
+    
     
     def start_browser(self, headless=True, mobile_mode=False, dis_image=False, browser_name=browsers_name, language="zh-CN", anti_crawler=True):
         try:

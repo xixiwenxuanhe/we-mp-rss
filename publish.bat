@@ -47,7 +47,7 @@ echo %COMMENT_FLAG%
 if %COMMENT_FLAG%==1 (
     set comment=%USER_COMMENT%
 ) else (
-    set comment="Fix"
+    set comment=Fix
 )
 
 echo %comment%
