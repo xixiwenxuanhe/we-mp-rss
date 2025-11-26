@@ -1,6 +1,6 @@
 
-FROM  ghcr.io/rachelos/base-mini:latest as werss-base
-# FROM  --platform=$BUILDPLATFORM docker.1ms.run/python:3.13.1-slim AS werss-base
+# FROM  ghcr.io/rachelos/base-mini:latest as werss-base
+FROM  --platform=$BUILDPLATFORM docker.1ms.run/python:3.13.1-slim AS werss-base
 #
 
 ENV PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
@@ -13,7 +13,7 @@ COPY requirements.txt .
 WORKDIR /app
 # 复制后端代码
 ADD ./config.example.yaml  ./config.yaml
-ADD  . .
+ADD . .
 RUN chmod +x start.sh
 # 暴露端口
 EXPOSE 8001

@@ -11,7 +11,7 @@ ENV PATH="$PNPM_HOME:$PATH"
 ENV DEBIAN_FRONTEND=noninteractive
 
 # 安装基础依赖
-RUN apt update && apt install -y wget build-essential zlib1g-dev  \
+RUN apt update && apt install -y wget build-essential zlib1g-dev  tzdata\
     libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev libsqlite3-dev \
     && rm -rf /var/lib/apt/lists/*
 
