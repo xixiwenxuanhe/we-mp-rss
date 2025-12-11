@@ -82,11 +82,11 @@ if [ -f "requirements.txt" ]; then
     fi
 fi 
 
-INSTALL=${INSTALL:-"True"}
+INSTALL=${INSTALL:-False}
 # 根据环境变量决定是否安装浏览器
-if [ "$INSTALL" = "False" ]; then
-    echo "INSTALL环境变量为True，开始安装playwright浏览器..."
+if [ "$INSTALL" = True ]; then
+    echo "INSTALL环境变量为$INSTALL，开始安装playwright浏览器..."
     playwright install $BROWSER_TYPE --with-deps
 else
-    echo "INSTALL环境变量不为True，跳过playwright浏览器安装"
+    echo "INSTALL环境变量为$INSTALL，跳过playwright浏览器安装"
 fi
