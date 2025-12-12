@@ -72,7 +72,7 @@ source $plant/bin/activate">/etc/profile
 # 检查requirements.txt更新
 if [ -f "requirements.txt" ]; then
     CURRENT_MD5=$(md5sum requirements.txt | cut -d' ' -f1)
-    OLD_MD5_FILE="/app/data/requirements.txt.md5"
+    OLD_MD5_FILE="$PLANT_PATH/requirements.txt.md5"
     
     if [ -f "$OLD_MD5_FILE" ] && [ "$CURRENT_MD5" = "$(cat $OLD_MD5_FILE)" ]; then
         echo "requirements.txt未更新，跳过安装"
