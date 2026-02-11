@@ -3,12 +3,15 @@
 """
 数据分析脚本（简化版） - 不依赖pandas
 提取公众号名称并将其他列用|连接
-使用方法: python analyze_data_simple.py
+使用方法: python tools/import.py
 输出: data/processed_output.txt
 """
 
 import os
 import sys
+
+# 添加项目根目录到Python路径
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def process_text_file(file_path: str) -> list:
@@ -27,9 +30,9 @@ def process_text_file(file_path: str) -> list:
                 # 确保至少有两列（序号和公众号名称）
                 if len(parts) >= 2:
                     # 第二列是公众号名称（索引1）
-                    public_name = parts[1].strip()
+                    public_name = parts[0 ].strip()
                     # 后面的列用|连接
-                    other_columns = [p.strip() for p in parts[2:] if p.strip()]
+                    other_columns = [p.strip() for p in parts[1:] if p.strip()]
                     
                     if public_name:
                         if other_columns:
@@ -66,6 +69,83 @@ def import_mps(data_file:str="data/data.txt"):
         
         if len(results) > 10:
             print(f"... 还有 {len(results) - 10} 条记录未显示")
+        
+        # 通过搜索接口获取相关信息并添加到feeds表
+        print("\n" + "=" * 50)
+        print("正在通过搜索接口获取公众号信息...")
+        
+        from core.db import DB
+        from core.models.feed import Feed
+        from core.wx import search_Biz
+        from datetime import datetime
+        import base64
+        import time
+        
+        session = DB.get_session()
+        success_count = 0
+        skip_count = 0
+        error_count = 0
+        
+        for result in results:
+            mp_name = result.split('|')[0].strip() if '|' in result else result.strip()
+            
+            try:
+                # 搜索公众号
+                print(f"正在搜索: {mp_name}")
+                search_result = search_Biz(mp_name, limit=1, offset=0)
+                
+                if search_result and 'list' in search_result and len(search_result['list']) > 0:
+                    mp_info = search_result['list'][0]
+                    
+                    # 提取公众号信息
+                    mp_id = mp_info.get('fakeid', '')
+                    mp_cover = mp_info.get('round_head_img', '')
+                    mp_intro = mp_info.get('signature', '')
+                    
+                    # 检查是否已存在
+                    existing_feed = session.query(Feed).filter(Feed.faker_id == mp_id).first()
+                    
+                    if existing_feed:
+                        print(f"  → 已存在，跳过: {mp_name}")
+                        skip_count += 1
+                        continue
+                    
+                    # 解码mp_id
+                    mpx_id = base64.b64decode(mp_id).decode("utf-8")
+                    now = datetime.now()
+                    
+                    # 创建新的Feed记录
+                    new_feed = Feed(
+                        id=f"MP_WXS_{mpx_id}",
+                        mp_name=mp_name,
+                        mp_cover=mp_cover,
+                        mp_intro=mp_intro,
+                        status=1,
+                        created_at=now,
+                        updated_at=now,
+                        faker_id=mp_id,
+                        update_time=0,
+                        sync_time=0,
+                    )
+                    session.add(new_feed)
+                    session.commit()
+                    print(f"  ✓ 添加成功: {mp_name}")
+                    success_count += 1
+                    
+                    # 添加延迟避免频繁请求
+                    time.sleep(0.5)
+                else:
+                    print(f"  ✗ 未找到: {mp_name}")
+                    error_count += 1
+                    
+            except Exception as e:
+                print(f"  ✗ 处理失败 {mp_name}: {str(e)}")
+                error_count += 1
+                session.rollback()
+        
+        print("\n" + "=" * 50)
+        print(f"导入完成: 成功 {success_count} 条，跳过 {skip_count} 条，失败 {error_count} 条")
+        print("=" * 50)
         
     else:
         print("未生成任何结果")
