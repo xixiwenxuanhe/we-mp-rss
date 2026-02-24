@@ -1,0 +1,29 @@
+services:
+  we-mp-rss:
+    image: we-mp-rss:local
+    container_name: we-mp-rss-dev
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    environment:
+      - DB=sqlite:///data/we_mp_rss.db
+      - USERNAME=xixiwenxuanhe
+      - PASSWORD=changsheng252403
+      - TZ=Asia/Shanghai
+      - GATHER.CONTENT=True
+      - AUTO_RELOAD=True
+    volumes:
+      - ./apis:/app/apis
+      - ./core:/app/core
+      - ./driver:/app/driver
+      - ./jobs:/app/jobs
+      - ./tools:/app/tools
+      - ./views:/app/views
+      - ./schemas:/app/schemas
+      - ./main.py:/app/main.py
+      - ./web.py:/app/web.py
+      - ./init_sys.py:/app/init_sys.py
+      - ./data_sync.py:/app/data_sync.py
+      - ./job.py:/app/job.py
+      - ./static:/app/static
+      - ./data:/app/data
