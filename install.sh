@@ -1,7 +1,8 @@
 #!/bin/bash
 plantform="$(uname -m)"
 PLANT_PATH=${PLANT_PATH:-/app/env/}
-plant=$PLANT_PATH_$plantform
+plant="${PLANT_PATH}_${plantform}"
+mkdir -p "$PLANT_PATH"
 python3 -m venv $plant
 source $plant/bin/activate
 echo "使用虚拟环境: $plant"
@@ -23,14 +24,7 @@ check_package() {
 # 检查所有需要的包
 packages=("wget" "git" "build-essential" "zlib1g-dev" 
           "libgdbm-dev" "libnss3-dev" "libssl-dev" "libreadline-dev" 
-          "libffi-dev" "libsqlite3-dev" "procps" )
-
-
-
-if [ "$EXPORT_PDF" = "True" ]; then
-    echo "添加libreoffice依赖包..."
-    packages+=("fonts-noto-cjk" "libreoffice")
-fi
+          "libffi-dev" "libsqlite3-dev" "procps" "fonts-noto-cjk" "libreoffice" )
 
 echo "检查依赖包安装状态..."
 for package in "${packages[@]}"; do
@@ -83,11 +77,5 @@ if [ -f "requirements.txt" ]; then
     fi
 fi 
 
-INSTALL=${INSTALL:-False}
-# 根据环境变量决定是否安装浏览器
-if [ "$INSTALL" = True ]; then
-    echo "INSTALL环境变量为$INSTALL，开始安装playwright浏览器..."
-    playwright install $BROWSER_TYPE --with-deps
-else
-    echo "INSTALL环境变量为$INSTALL，跳过playwright浏览器安装"
-fi
+echo "开始安装playwright浏览器..."
+playwright install $BROWSER_TYPE --with-deps

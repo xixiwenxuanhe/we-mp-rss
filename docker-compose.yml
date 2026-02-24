@@ -1,0 +1,20 @@
+version: "3.9"
+
+services:
+  we-mp-rss:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: we-mp-rss:local
+    container_name: we-mp-rss
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    environment:
+      - DB=sqlite:///data/we_mp_rss.db
+      - USERNAME=xixiwenxuanhe
+      - PASSWORD=changsheng252403
+      - TZ=Asia/Shanghai
+      - GATHER.CONTENT=True
+    volumes:
+      - ./data:/app/data

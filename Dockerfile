@@ -16,6 +16,7 @@ ADD ./config.example.yaml  ./config.yaml
 ADD . .
 RUN chmod +x install.sh
 RUN chmod +x start.sh
+RUN ./install.sh
 # 暴露端口
 EXPOSE 8001
 CMD ["bash", "start.sh"]
