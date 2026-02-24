@@ -171,6 +171,9 @@
                 <a-button type="text" @click="viewArticle(record)" :title="record.id">
                   <template #icon><icon-eye /></template>
                 </a-button>
+                <a-button type="text" @click="refreshSingleArticle(record)">
+                  <template #icon><icon-refresh /></template>
+                </a-button>
                 <a-button type="text" status="danger" @click="deleteArticle(record.id)">
                   <template #icon><icon-delete /></template>
                 </a-button>
@@ -220,8 +223,9 @@ import { Avatar } from '@/utils/constants'
 import { translatePage, setCurrentLanguage } from '@/utils/translate';
 import { ref, onMounted, h, nextTick, watch, computed } from 'vue'
 import axios from 'axios'
+<<<<<<< HEAD
 import { IconApps, IconAtt, IconDelete, IconEdit, IconEye, IconRefresh, IconScan, IconWeiboCircleFill, IconWifi, IconCode, IconCheck, IconClose, IconStop, IconPlayArrow, IconCopy, IconPlus, IconDown, IconExport, IconImport, IconShareExternal } from '@arco-design/web-vue/es/icon'
-import { getArticles, deleteArticle as deleteArticleApi, ClearArticle, ClearDuplicateArticle, getArticleDetail, toggleArticleReadStatus } from '@/api/article'
+import { getArticles, deleteArticle as deleteArticleApi, ClearArticle, ClearDuplicateArticle, getArticleDetail, toggleArticleReadStatus, refreshArticle as refreshArticleApi, getRefreshArticleTaskStatus } from '@/api/article'
 import { ExportOPML, ExportMPS, ImportMPS } from '@/api/export'
 import ExportModal from '@/components/ExportModal.vue'
 import { getSubscriptions, UpdateMps, toggleMpStatus as toggleMpStatusApi } from '@/api/subscription'
@@ -671,6 +675,41 @@ const deleteArticle = (id: number) => {
       Message.info('已取消删除操作');
     }
   });
+}
+
+const refreshSingleArticle = async (record: any) => {
+  try {
+    const res = await refreshArticleApi(record.id)
+    const taskId = res?.task_id
+    Message.success(res?.message || '已开始刷新，请稍后查看')
+    if (!taskId) {
+      return
+    }
+    const pollTaskStatus = async (retries = 15) => {
+      for (let i = 0; i < retries; i++) {
+        await new Promise(resolve => setTimeout(resolve, 2000))
+        try {
+          const task = await getRefreshArticleTaskStatus(taskId)
+          if (task?.status === 'success') {
+            Message.success(task?.message || '文章刷新成功')
+            fetchArticles()
+            return
+          }
+          if (task?.status === 'failed') {
+            Message.error(task?.message || '文章刷新失败')
+            return
+          }
+        } catch (e) {
+          // ignore transient query errors
+        }
+      }
+      Message.info('刷新任务仍在执行，请稍后手动刷新列表查看结果')
+    }
+    pollTaskStatus()
+  } catch (error) {
+    console.error('刷新文章失败:', error)
+    Message.error(error)
+  }
 }
 
 const handleBatchDelete = () => {

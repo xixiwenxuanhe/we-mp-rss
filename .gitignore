@@ -23,3 +23,9 @@ test.yaml
 .venv
 .idea
 .trae
+static/assets/
+package-lock.json
+web_ui/package-lock.json
+web_ui/yarn.lock
+web_ui/dist/
+static/index.html

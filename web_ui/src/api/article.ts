@@ -116,6 +116,24 @@ export const deleteArticle = (id: number) => {
 }
 
 /**
+ * 刷新单篇文章内容（重新抓取并写回数据库）
+ * @param id 文章ID
+ * @returns 刷新结果
+ */
+export const refreshArticle = (id: number | string) => {
+  return http.post<{code: number, message: string}>(`/wx/articles/${id}/refresh`)
+}
+
+/**
+ * 查询单篇刷新任务状态
+ * @param taskId 任务ID
+ * @returns 任务状态
+ */
+export const getRefreshArticleTaskStatus = (taskId: string) => {
+  return http.get<{code: number, data: any}>(`/wx/articles/refresh/tasks/${taskId}`)
+}
+
+/**
  * 清空所有文章
  * @param id 无实际作用（保留参数）
  * @returns 清空结果
