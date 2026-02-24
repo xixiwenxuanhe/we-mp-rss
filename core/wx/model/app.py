@@ -13,15 +13,18 @@ class MpsAppMsg(WxGather):
 
     # 重写 content_extract 方法
     def content_extract(self,  url):
+        self._last_content_reason = ""
         try:
             from driver.wxarticle import Web as App
             r = App.get_article_content(url)
             if r!=None:
+                self._last_content_reason = r.get("fetch_error","")
                 text = r.get("content","")
                 text=self.remove_common_html_elements(text)
                 return  text
         except Exception as e:
             logger.error(e)
+            self._last_content_reason = "fetch_failed"
         return ""
     # 重写 get_Articles 方法
     def get_Articles(self, faker_id:str=None,Mps_id:str=None,Mps_title="",CallBack=None,start_page:int=0,MaxPage:int=1,interval=10,Gather_Content=False,Item_Over_CallBack=None,Over_CallBack=None):
@@ -88,14 +91,35 @@ class MpsAppMsg(WxGather):
                             if "appmsgex" in publish_info:
                                 # info = '"{}","{}","{}","{}"'.format(str(item["aid"]), item['title'], item['link'], str(item['create_time']))
                                 for item in publish_info["appmsgex"]:
+                                    content_success = True
+                                    content_reason = "content_disabled"
                                     if Gather_Content:
                                         if not super().HasGathered(item["aid"]):
                                             item["content"] = self.content_extract(item['link'])
-                                            super().Wait(3,10,tips=f"{item['title']} 采集完成")
+                                            if item["content"] == "DELETED":
+                                                content_success = True
+                                                content_reason = "deleted"
+                                            elif item["content"]:
+                                                content_success = True
+                                                content_reason = "ok"
+                                            else:
+                                                content_success = False
+                                                if self._last_content_reason == "timeout":
+                                                    content_reason = "timeout"
+                                                else:
+                                                    content_reason = "empty_content"
+                                        else:
+                                            item["content"] = item.get("content", "")
+                                            content_success = True
+                                            content_reason = "duplicate_skipped"
                                     else:
                                         item["content"] = ""
+                                        content_success = True
+                                        content_reason = "content_disabled"
                                     item["id"] = item["aid"]
                                     item["mp_id"] = Mps_id
+                                    super().article_final_log(item=item, success=content_success, reason=content_reason, mp_id=Mps_id)
+                                    super().wait_after_article(item=item, success=content_success, min_wait=3, max_wait=10)
                                     if CallBack is not None:
                                         super().FillBack(CallBack=CallBack,data=item,Ext_Data={"mp_title":Mps_title,"mp_id":Mps_id})
                     print(f"第{i+1}页爬取成功\n")

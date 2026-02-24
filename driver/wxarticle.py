@@ -247,6 +247,7 @@ class WXArticleFetcher:
                 "title": "",
                 "publish_time": "",
                 "content": "",
+                "fetch_error": "",
                 "images": "",
                 "mp_info":{
                 "mp_name":"",
@@ -357,18 +358,27 @@ class WXArticleFetcher:
                 print_error(f"文章内容获取失败: {error_msg}")
                 if body:
                     print_warning(f"页面内容预览: {body[:50]}...")
+                is_title_timeout = (
+                    "Locator.get_attribute: Timeout" in error_msg
+                    and "meta[property=\"og:title\"]" in error_msg
+                )
                 retryable = (
                     "当前环境异常，完成验证后即可继续访问" in error_msg
                     or "Target page, context or browser has been closed" in error_msg
-                    or (
-                        "Locator.get_attribute: Timeout" in error_msg
-                        and "meta[property=\"og:title\"]" in error_msg
-                    )
+                    or is_title_timeout
                 )
                 if retryable and attempt < len(retry_delays):
                     retry_delay = retry_delays[attempt]
                     print_warning(f"第{attempt + 1}次重试，等待{retry_delay}秒...")
                 else:
+                    if is_title_timeout:
+                        info["fetch_error"] = "timeout"
+                    elif "当前环境异常，完成验证后即可继续访问" in error_msg:
+                        info["fetch_error"] = "verify_blocked"
+                    elif "Target page, context or browser has been closed" in error_msg:
+                        info["fetch_error"] = "browser_closed"
+                    else:
+                        info["fetch_error"] = "fetch_failed"
                     return info
             finally:
                 self.Close()

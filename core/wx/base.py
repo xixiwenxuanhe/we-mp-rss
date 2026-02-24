@@ -119,6 +119,23 @@ class WxGather:
         print_warning(f"{tips}等待{wait}秒后继续...")
         time.sleep(wait)
 
+    def article_final_log(self, item: dict, success: bool, reason: str = "", mp_id: str = ""):
+        aid = str(item.get("aid", item.get("id", "")))
+        title = str(item.get("title", "")).replace("\n", " ").strip()
+        _mp_id = str(mp_id or item.get("mp_id", ""))
+        status = "SUCCESS" if success else "FAILED"
+        msg = f"[ARTICLE_FINAL] status={status} mp_id={_mp_id} aid={aid} title={title} reason={reason}"
+        if success:
+            print_info(msg)
+        else:
+            print_error(msg)
+
+    def wait_after_article(self, item: dict, success: bool, min_wait: int = 3, max_wait: int = 10):
+        wait=random.randint(min_wait,max_wait)
+        phase = "成功后" if success else "失败后"
+        print_warning(f"=================== {phase}等待{wait}秒后继续... ===================")
+        time.sleep(wait)
+
     def FillBack(self,CallBack=None,data=None,Ext_Data=None):
         if CallBack is not None:
             if data is not  None:

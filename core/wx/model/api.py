@@ -78,14 +78,32 @@ class MpsApi(WxGather):
                     for item in msg["app_msg_list"]:
                         time.sleep(random.randint(1,3))
                         # info = '"{}","{}","{}","{}"'.format(str(item["aid"]), item['title'], item['link'], str(item['create_time']))
+                        content_success = True
+                        content_reason = "content_disabled"
                         if Gather_Content:
                             if not super().HasGathered(item["aid"]):
                                 item["content"] = self.content_extract(item['link'])
-                                super().Wait(3,10,tips=f"{item['title']} 采集完成")
+                                if item["content"] == "DELETED":
+                                    content_success = True
+                                    content_reason = "deleted"
+                                elif item["content"]:
+                                    content_success = True
+                                    content_reason = "ok"
+                                else:
+                                    content_success = False
+                                    content_reason = "empty_content"
+                            else:
+                                item["content"] = item.get("content", "")
+                                content_success = True
+                                content_reason = "duplicate_skipped"
                         else:
                             item["content"] = ""
+                            content_success = True
+                            content_reason = "content_disabled"
                         item["id"] = item["aid"]
                         item["mp_id"] = Mps_id
+                        super().article_final_log(item=item, success=content_success, reason=content_reason, mp_id=Mps_id)
+                        super().wait_after_article(item=item, success=content_success, min_wait=3, max_wait=10)
                         if CallBack is not None:
                             super().FillBack(CallBack=CallBack,data=item,Ext_Data={"mp_title":Mps_title,"mp_id":Mps_id})
                     print(f"第{i+1}页爬取成功\n")
