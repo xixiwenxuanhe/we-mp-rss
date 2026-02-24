@@ -269,7 +269,13 @@ class WXArticleFetcher:
                 body = page.locator("body").text_content().strip()
                 info["content"] = body
 
-                if "当前环境异常，完成验证后即可继续访问" in body:
+                verify_markers = [
+                    "当前环境异常，完成验证后即可继续访问",
+                    "mmbizwap:secitptpage/verify.html",
+                    "secitptpage/verify.html",
+                    "PAGE_MID='mmbizwap:secitptpage/verify.html'",
+                ]
+                if any(marker in body for marker in verify_markers):
                     info["content"] = ""
                     raise Exception("当前环境异常，完成验证后即可继续访问")
                 if "该内容已被发布者删除" in body or "The content has been deleted by the author." in body:
@@ -354,6 +360,10 @@ class WXArticleFetcher:
                 retryable = (
                     "当前环境异常，完成验证后即可继续访问" in error_msg
                     or "Target page, context or browser has been closed" in error_msg
+                    or (
+                        "Locator.get_attribute: Timeout" in error_msg
+                        and "meta[property=\"og:title\"]" in error_msg
+                    )
                 )
                 if retryable and attempt < len(retry_delays):
                     retry_delay = retry_delays[attempt]
