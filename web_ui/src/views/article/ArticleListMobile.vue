@@ -18,6 +18,7 @@
         <a-card style="border:0">
           <div class="search-bar">
             <a-input-search v-model="searchText" placeholder="搜索文章标题" @search="handleSearch" @keyup.enter="handleSearch" allow-clear />
+            <a-checkbox v-model="onlyFavorite" @change="handleFavoriteFilterChange">仅显示已收藏</a-checkbox>
           </div>
 
           <a-list :data="articles" :loading="loading" bordered>
@@ -54,10 +55,19 @@
                     <a-typography-text type="secondary" strong> {{ formatDateTime(item.created_at) }}</a-typography-text>
                   </template>
                 </a-list-item-meta>
-                <a-button type="text" @click="viewArticle(item)">
-                  <template #icon><icon-eye /></template>
-                  查看
-                </a-button>
+                <a-space>
+                  <a-button type="text" @click="toggleFavoriteStatus(item)">
+                    <template #icon>
+                      <icon-star-fill v-if="item.is_favorite === 1" />
+                      <icon-star v-else />
+                    </template>
+                    {{ item.is_favorite === 1 ? '已收藏' : '收藏' }}
+                  </a-button>
+                  <a-button type="text" @click="viewArticle(item)">
+                    <template #icon><icon-eye /></template>
+                    查看
+                  </a-button>
+                </a-space>
               </a-list-item>
             </template>
           </a-list>
@@ -155,8 +165,8 @@
 import { formatDateTime,formatTimestamp } from '@/utils/date'
 import { Avatar } from '@/utils/constants'
 import { ref, onMounted, computed } from 'vue'
-import { IconCheck, IconClose, IconStop, IconPlayArrow, IconCopy } from '@arco-design/web-vue/es/icon'
-import { getArticles, getArticleDetail,getPrevArticle,getNextArticle,toggleArticleReadStatus } from '@/api/article'
+import { IconCheck, IconClose, IconStop, IconPlayArrow, IconCopy, IconStar, IconStarFill } from '@arco-design/web-vue/es/icon'
+import { getArticles, getArticleDetail, toggleArticleReadStatus, toggleArticleFavoriteStatus } from '@/api/article'
 import { getSubscriptions, toggleMpStatus as toggleMpStatusApi } from '@/api/subscription'
 import { Message } from '@arco-design/web-vue'
 import { ProxyImage } from '@/utils/constants'
@@ -166,6 +176,7 @@ const mpList = ref([])
 const mpLoading = ref(false)
 const activeMpId = ref('')
 const searchText = ref('')
+const onlyFavorite = ref(false)
 const mpListVisible = ref(false)
 const mpFilterType = ref('active') // 'active' | 'disabled' | 'all'
 
@@ -209,20 +220,23 @@ const fetchArticles = async (isLoadMore = false) => {
       page: isLoadMore ? pagination.value.current : 0,
       pageSize: pagination.value.pageSize,
       search: searchText.value,
-      mp_id: activeMpId.value
+      mp_id: activeMpId.value,
+      only_favorite: onlyFavorite.value
     })
 
     if (isLoadMore) {
       articles.value = [...articles.value, ...(res.list || []).map(item => ({
         ...item,
         mp_name: item.mp_name || item.account_name || '未知公众号',
-        url: item.url || "https://mp.weixin.qq.com/s/" + item.id
+        url: item.url || "https://mp.weixin.qq.com/s/" + item.id,
+        is_favorite: item.is_favorite === 1 ? 1 : 0
       }))]
     } else {
       articles.value = (res.list || []).map(item => ({
         ...item,
         mp_name: item.mp_name || item.account_name || '未知公众号',
-        url: item.url || "https://mp.weixin.qq.com/s/" + item.id
+        url: item.url || "https://mp.weixin.qq.com/s/" + item.id,
+        is_favorite: item.is_favorite === 1 ? 1 : 0
       }))
     }
     
@@ -247,6 +261,15 @@ const handlePageChange = (page: number, pageSize: number) => {
 
 const handleSearch = () => {
   pagination.value.current = 1
+  articles.value = []
+  hasMore.value = true
+  fetchArticles()
+}
+
+const handleFavoriteFilterChange = () => {
+  pagination.value.current = 1
+  articles.value = []
+  hasMore.value = true
   fetchArticles()
 }
  const processedContent = (record: any) => {
@@ -371,6 +394,30 @@ const toggleReadStatus = async (record: any) => {
   }
 };
 
+const toggleFavoriteStatus = async (record: any) => {
+  try {
+    const newFavoriteStatus = record.is_favorite === 1 ? false : true
+    await toggleArticleFavoriteStatus(record.id, newFavoriteStatus)
+
+    const index = articles.value.findIndex(item => item.id === record.id)
+    if (index !== -1) {
+      articles.value[index].is_favorite = newFavoriteStatus ? 1 : 0
+    }
+
+    Message.success(newFavoriteStatus ? '收藏成功' : '已取消收藏')
+
+    if (onlyFavorite.value && !newFavoriteStatus) {
+      pagination.value.current = 1
+      articles.value = []
+      hasMore.value = true
+      fetchArticles()
+    }
+  } catch (error) {
+    console.error('更新收藏状态失败:', error)
+    Message.error('更新收藏状态失败')
+  }
+}
+
 // 切换公众号状态
 const toggleMpStatus = async (mpId: string, newStatus: number) => {
   try {
@@ -425,6 +472,10 @@ onMounted(() => {
 }
 
 .search-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
   margin-bottom: 20px;
 }
 

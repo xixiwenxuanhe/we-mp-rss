@@ -152,6 +152,7 @@
           <div class="search-bar">
             <a-input-search v-model="searchText" placeholder="搜索文章标题" @search="handleSearch" @keyup.enter="handleSearch"
               allow-clear />
+            <a-checkbox v-model="onlyFavorite" @change="handleFavoriteFilterChange">仅显示已收藏</a-checkbox>
           </div>
           <a-table :columns="columns" :data="articles" :loading="loading" :pagination="pagination" :row-selection="{
             type: 'checkbox',
@@ -170,6 +171,12 @@
               <a-space>
                 <a-button type="text" @click="viewArticle(record)" :title="record.id">
                   <template #icon><icon-eye /></template>
+                </a-button>
+                <a-button type="text" @click="toggleFavoriteStatus(record)" :title="record.is_favorite === 1 ? '取消收藏' : '收藏'">
+                  <template #icon>
+                    <icon-star-fill v-if="record.is_favorite === 1" />
+                    <icon-star v-else />
+                  </template>
                 </a-button>
                 <a-button type="text" @click="refreshSingleArticle(record)">
                   <template #icon><icon-refresh /></template>
@@ -223,8 +230,8 @@ import { Avatar } from '@/utils/constants'
 import { translatePage, setCurrentLanguage } from '@/utils/translate';
 import { ref, onMounted, h, nextTick, watch, computed } from 'vue'
 import axios from 'axios'
-import { IconApps, IconAtt, IconDelete, IconEdit, IconEye, IconRefresh, IconScan, IconWeiboCircleFill, IconWifi, IconCode, IconCheck, IconClose, IconStop, IconPlayArrow, IconCopy, IconPlus, IconDown, IconExport, IconImport, IconShareExternal } from '@arco-design/web-vue/es/icon'
-import { getArticles, deleteArticle as deleteArticleApi, ClearArticle, ClearDuplicateArticle, getArticleDetail, toggleArticleReadStatus, refreshArticle as refreshArticleApi, getRefreshArticleTaskStatus } from '@/api/article'
+import { IconApps, IconAtt, IconDelete, IconEdit, IconEye, IconRefresh, IconScan, IconWeiboCircleFill, IconWifi, IconCode, IconCheck, IconClose, IconStop, IconPlayArrow, IconCopy, IconPlus, IconDown, IconExport, IconImport, IconShareExternal, IconStar, IconStarFill } from '@arco-design/web-vue/es/icon'
+import { getArticles, deleteArticle as deleteArticleApi, ClearArticle, ClearDuplicateArticle, getArticleDetail, toggleArticleReadStatus, toggleArticleFavoriteStatus, refreshArticle as refreshArticleApi, getRefreshArticleTaskStatus } from '@/api/article'
 import { ExportOPML, ExportMPS, ImportMPS } from '@/api/export'
 import ExportModal from '@/components/ExportModal.vue'
 import { getSubscriptions, UpdateMps, toggleMpStatus as toggleMpStatusApi } from '@/api/subscription'
@@ -254,6 +261,7 @@ const mpPagination = ref({
 })
 const mpFilterType = ref('active') // 'active' | 'disabled' | 'all'
 const searchText = ref('')
+const onlyFavorite = ref(false)
 const filterStatus = ref('')
 const mpSearchText = ref('')
 
@@ -397,7 +405,8 @@ const fetchArticles = async () => {
       pageSize: pagination.value.pageSize,
       search: searchText.value,
       status: filterStatus.value,
-      mp_id: activeMpId.value
+      mp_id: activeMpId.value,
+      only_favorite: onlyFavorite.value
     })
 
     const res = await getArticles({
@@ -405,7 +414,8 @@ const fetchArticles = async () => {
       pageSize: pagination.value.pageSize,
       search: searchText.value,
       status: filterStatus.value,
-      mp_id: activeMpId.value
+      mp_id: activeMpId.value,
+      only_favorite: onlyFavorite.value
     })
 
     // 确保数据包含必要字段
@@ -413,7 +423,8 @@ const fetchArticles = async () => {
       ...item,
       mp_name: item.mp_name || item.account_name || '未知公众号',
       publish_time: item.publish_time || item.create_time || '-',
-      url: item.url || "https://mp.weixin.qq.com/s/" + item.id
+      url: item.url || "https://mp.weixin.qq.com/s/" + item.id,
+      is_favorite: item.is_favorite === 1 ? 1 : 0
     }))
     pagination.value.total = res.total || 0
   } catch (error) {
@@ -464,6 +475,11 @@ const handlePageSizeChange = (pageSize: number) => {
 }
 
 const handleSearch = () => {
+  pagination.value.current = 1
+  fetchArticles()
+}
+
+const handleFavoriteFilterChange = () => {
   pagination.value.current = 1
   fetchArticles()
 }
@@ -959,6 +975,29 @@ const toggleReadStatus = async (record: any) => {
     Message.error('更新阅读状态失败');
   }
 };
+
+const toggleFavoriteStatus = async (record: any) => {
+  try {
+    const newFavoriteStatus = record.is_favorite === 1 ? false : true
+    await toggleArticleFavoriteStatus(record.id, newFavoriteStatus)
+
+    const index = articles.value.findIndex(item => item.id === record.id)
+    if (index !== -1) {
+      articles.value[index].is_favorite = newFavoriteStatus ? 1 : 0
+    }
+
+    Message.success(newFavoriteStatus ? '收藏成功' : '已取消收藏')
+
+    if (onlyFavorite.value && !newFavoriteStatus) {
+      pagination.value.current = 1
+      fetchArticles()
+      return
+    }
+  } catch (error) {
+    console.error('更新收藏状态失败:', error)
+    Message.error('更新收藏状态失败')
+  }
+}
 </script>
 
 <style scoped>
@@ -987,6 +1026,9 @@ const toggleReadStatus = async (record: any) => {
 
 .search-bar {
   display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
   margin-bottom: 20px;
 }
 
