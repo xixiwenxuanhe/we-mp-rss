@@ -28,6 +28,19 @@ export interface AddSubscriptionParams {
   mp_intro?: string
 }
 
+export interface AddFeaturedArticleParams {
+  url: string
+}
+
+export interface FeaturedArticleTask {
+  task_id: string
+  url: string
+  status: 'pending' | 'running' | 'success' | 'failed'
+  message: string
+  id?: string
+  title?: string
+}
+
 export interface MpItem {
   mp_id: string
   mp_name: string
@@ -39,7 +52,7 @@ export interface MpSearchResult {
   data: MpItem[]
 }
 
-export const getSubscriptions = (params?: { page?: number; pageSize?: number }) => {
+export const getSubscriptions = (params?: { page?: number; pageSize?: number; kw?: string }) => {
   const apiParams = {
     offset: (params?.page || 0) * (params?.pageSize || 10),
     limit: params?.pageSize || 10,
@@ -58,6 +71,16 @@ export const addSubscription = (data: AddSubscriptionParams) => {
 }
 export const getSubscriptionInfo = (url: string) => {
   return http.post<{code: number, message: string}>(`/wx/mps/by_article?url=${url}`)
+}
+
+// 添加精选文章（通过文章链接）
+export const addFeaturedArticle = (data: AddFeaturedArticleParams) => {
+  return http.post<{code: number, data: FeaturedArticleTask}>('/wx/mps/featured/article', data)
+}
+
+// 查询精选文章添加任务状态
+export const getFeaturedArticleTaskStatus = (taskId: string) => {
+  return http.get<{code: number, data: FeaturedArticleTask}>(`/wx/mps/featured/article/tasks/${taskId}`)
 }
 
 export const deleteMpApi = (mp_id: string) => {

@@ -9,6 +9,7 @@ from core.config import cfg
 from apis.base import format_search_kw
 from core.print import print_warning, print_info, print_error, print_success
 from core.cache import clear_cache_pattern
+from core.models.feed import FEATURED_MP_ID, FEATURED_MP_NAME
 from tools.fix import fix_article
 from datetime import datetime
 from driver.wxarticle import WXArticleFetcher
@@ -317,8 +318,11 @@ async def get_articles(
         mp_names = {}
         for article in articles:
             if article.mp_id and article.mp_id not in mp_names:
-                feed = session.query(Feed).filter(Feed.id == article.mp_id).first()
-                mp_names[article.mp_id] = feed.mp_name if feed else "未知公众号"
+                if article.mp_id == FEATURED_MP_ID:
+                    mp_names[article.mp_id] = FEATURED_MP_NAME
+                else:
+                    feed = session.query(Feed).filter(Feed.id == article.mp_id).first()
+                    mp_names[article.mp_id] = feed.mp_name if feed else "未知公众号"
         
         # 合并公众号名称到文章列表
         article_list = []

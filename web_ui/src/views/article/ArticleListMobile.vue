@@ -111,7 +111,7 @@
               {{ item.name || item.mp_name }}
             </a-typography-text>
           </div>
-          <a-space v-if="activeMpId === item.id && item.id != ''">
+          <a-space v-if="activeMpId === item.id && canManageMp(item.id)">
             <a-button size="mini" type="text" @click="$event.stopPropagation(); copyMpId(item.id)">
               <template #icon><icon-copy /></template>
             </a-button>
@@ -170,6 +170,8 @@ import { getArticles, getArticleDetail, toggleArticleReadStatus, toggleArticleFa
 import { getSubscriptions, toggleMpStatus as toggleMpStatusApi } from '@/api/subscription'
 import { Message } from '@arco-design/web-vue'
 import { ProxyImage } from '@/utils/constants'
+const FEATURED_MP_ID = 'MP_WXS_FEATURED_ARTICLES'
+const FEATURED_MP_NAME = '精选文章'
 const articles = ref([])
 const loading = ref(false)
 const mpList = ref([])
@@ -194,6 +196,7 @@ const activeFeed = ref({
   id: "",
   name: "全部",
 })
+const canManageMp = (mpId: string) => mpId !== '' && mpId !== FEATURED_MP_ID
 
 const showMpList = () => {
   mpListVisible.value = true
@@ -360,14 +363,40 @@ const fetchMpList = async () => {
       page: 0,
       pageSize: 100
     })
-    
-    mpList.value = res.list.map(item => ({
+
+    const rawList = (res.list || []).map(item => ({
       id: item.id || item.mp_id,
       name: item.name || item.mp_name,
       avatar: item.avatar || item.mp_cover || '',
       mp_intro: item.mp_intro || item.mp_intro || '',
       status: item.status ?? 1
     }))
+    const uniqueMap = new Map()
+    rawList.forEach(item => {
+      if (item?.id) {
+        uniqueMap.set(item.id, item)
+      }
+    })
+    const featuredItem = uniqueMap.get(FEATURED_MP_ID) || {
+      id: FEATURED_MP_ID,
+      name: FEATURED_MP_NAME,
+      avatar: '/static/logo.svg',
+      mp_intro: '手动添加的公众号单篇文章会归类到这里。',
+      status: 1
+    }
+    uniqueMap.delete(FEATURED_MP_ID)
+    const baseList = Array.from(uniqueMap.values())
+    mpList.value = [
+      {
+        id: '',
+        name: '全部',
+        avatar: '/static/logo.svg',
+        mp_intro: '显示所有公众号文章',
+        status: 1
+      },
+      featuredItem,
+      ...baseList
+    ]
   } catch (error) {
     console.error('获取公众号列表错误:', error)
   } finally {
@@ -420,6 +449,10 @@ const toggleFavoriteStatus = async (record: any) => {
 
 // 切换公众号状态
 const toggleMpStatus = async (mpId: string, newStatus: number) => {
+  if (mpId === FEATURED_MP_ID) {
+    Message.warning('系统内置分组不允许修改状态')
+    return
+  }
   try {
     await toggleMpStatusApi(mpId, newStatus);
     Message.success(newStatus === 0 ? '公众号已禁用' : '公众号已启用');
