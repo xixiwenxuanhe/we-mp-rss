@@ -1006,13 +1006,13 @@ class TemplateParser:
 
     def _clean_output(self, output: str) -> str:
         """Clean up the final output while preserving essential formatting."""
+        output = re.sub(r"\n+", "\n", output)     
         lines = output.split('\n')
         cleaned = []
         
         for line in lines:
             # Preserve all lines including empty ones that are part of the template structure
             cleaned.append(line)
-            
         # Join lines while preserving original newlines and indentation
         return '\n'.join(cleaned) 
         

@@ -90,20 +90,20 @@ async def get_message_task(
         return success_response(data=message_task)
     except Exception as e:
         return error_response(code=500, message=str(e))
-@router.get("/message/test/{task_id}", summary="测试消息")
+@router.post("/message/test/{task_id}", summary="测试消息")
 async def test_message_task(
     task_id: str,
     current_user: dict = Depends(get_current_user_or_ak)
 ):
     db=DB.get_session()
     """
-    测试消息消息任务详情
+    测试消息任务
     
     参数:
         task_id: 消息任务ID
         
     返回:
-        包含消息任务详情的成功响应，或错误响应
+        包含测试结果的响应
         
     异常:
         404: 消息任务不存在
@@ -113,8 +113,56 @@ async def test_message_task(
         message_task = db.query(MessageTask).filter(MessageTask.id == task_id).first()
         if not message_task:
             raise HTTPException(status_code=404, detail="Message task not found")
-        return success_response(data=message_task)
+        
+        # 获取第一个订阅号进行测试
+        from jobs.mps import get_feeds
+        import json
+        feeds = get_feeds(message_task)
+        
+        if not feeds or len(feeds) == 0:
+            return error_response(code=400, message="没有可用的订阅号进行测试")
+        
+        feed = feeds[0]  # 使用第一个订阅号进行测试
+        
+        # 创建测试用的模拟文章数据
+        from datetime import datetime, timedelta
+        mock_articles = []
+        for i in range(1, 10):
+            mock_articles.append( {
+            "id": f"test-article-00{i}",
+            "mp_id": feed.id,
+            "title": f"测试文章标题{i}",
+            "pic_url": "https://via.placeholder.com/300x200",
+            "url": f"https://example.com/test-article-{i}",
+            "description": f"这是一篇测试文章的描述内容，用于测试消息任务功能是否正常。第{i}篇文章。",
+            "publish_time": (datetime.now() - timedelta(minutes=30)).strftime("%Y-%m-%d %H:%M:%S"),
+            "content": "<p>这是测试文章的正文内容。</p>"
+        })
+        
+        # 执行测试消息发送（web_hook函数内部会处理字典类型）
+        from jobs.webhook import MessageWebHook, web_hook
+        # 使用类型忽略注释，因为web_hook函数会处理字典和Article对象
+        test_hook = MessageWebHook(  # type: ignore
+            task=message_task,
+            feed=feed,
+            articles=mock_articles  # type: ignore
+        )
+        
+        result = web_hook(test_hook, is_test=True)
+        
+        return success_response(
+            data={
+                "task_id": task_id,
+                "feed_name": feed.mp_name,
+                "test_article": mock_articles[0],
+                "result": result
+            },
+            message=f"测试消息已发送到 {feed.mp_name}"
+        )
+    except HTTPException:
+        raise
     except Exception as e:
+        print_error(e)
         return error_response(code=500, message=str(e))
 @router.get("/{task_id}/run", summary="执行单个消息任务详情")
 async def run_message_task(
@@ -146,7 +194,7 @@ async def run_message_task(
         tasks=run(task_id,isTest=isTest)
         count=0
         if not tasks:
-            raise HTTPException(status_code=404, detail="Message task not found")
+            raise HTTPException(status_code=404, detail="Message task not found or has been deactivated")
         else:
             import json
             for task in tasks:
@@ -176,6 +224,8 @@ class MessageTaskCreate(BaseModel):
     message_type: int=0
     cron_exp:str=""
     status: Optional[int] = 0
+    headers: Optional[str] = ""
+    cookies: Optional[str] = ""
 
 @router.post("", summary="创建消息任务", status_code=status.HTTP_201_CREATED)
 async def create_message_task(
@@ -205,7 +255,9 @@ async def create_message_task(
             mps_id=task_data.mps_id,
             message_type=task_data.message_type,
             name=task_data.name,
-            status=task_data.status if task_data.status is not None else 0
+            status=task_data.status if task_data.status is not None else 0,
+            headers=task_data.headers if task_data.headers is not None else "",
+            cookies=task_data.cookies if task_data.cookies is not None else ""
         )
         db.add(db_task)
         db.commit()
@@ -257,6 +309,10 @@ async def update_message_task(
             db_task.message_type = task_data.message_type
         if task_data.name is not None:
             db_task.name = task_data.name
+        if task_data.headers is not None:
+            db_task.headers = task_data.headers
+        if task_data.cookies is not None:
+            db_task.cookies = task_data.cookies
         db.commit()
         db.refresh(db_task)
         return success_response(data=db_task)

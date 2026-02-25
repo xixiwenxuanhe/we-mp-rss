@@ -9,6 +9,7 @@ from views.base import process_content_images, _render_template_with_error
 from core.db import DB
 from core.models.article import Article
 from core.models.feed import Feed
+from core.models.feed import FEATURED_MP_ID, FEATURED_MP_NAME, FEATURED_MP_INTRO
 from core.models.tags import Tags
 from apis.base import format_search_kw
 from core.lax.template_parser import TemplateParser
@@ -30,8 +31,8 @@ async def article_detail_view(
     try:
         # 查询文章信息
         article_query = session.query(Article, Feed).join(
-            Feed, Article.mp_id == Feed.id
-        ).filter(Article.id == article_id, Article.status == 1, Feed.status == 1).first()
+            Feed, Article.mp_id == Feed.id, isouter=True
+        ).filter(Article.id == article_id, Article.status == 1).first()
         
         if not article_query:
             raise HTTPException(status_code=404, detail="文章不存在")
@@ -39,6 +40,12 @@ async def article_detail_view(
         if len(article_query) != 2:
             raise HTTPException(status_code=500, detail="数据查询错误")
         article, feed = article_query
+        if article.mp_id != FEATURED_MP_ID and (not feed or feed.status != 1):
+            raise HTTPException(status_code=404, detail="文章不存在")
+
+        feed_name = FEATURED_MP_NAME if article.mp_id == FEATURED_MP_ID else (feed.mp_name if feed else "未知公众号")
+        feed_cover = "/static/logo.svg" if article.mp_id == FEATURED_MP_ID else (Web.get_image_url(feed.mp_cover) if feed else "")
+        feed_intro = FEATURED_MP_INTRO if article.mp_id == FEATURED_MP_ID else (feed.mp_intro if feed else "")
         
         # 标记为已读（可选）
         if not article.is_read:
@@ -86,15 +93,15 @@ async def article_detail_view(
             "publish_time": datetime.fromtimestamp(article.publish_time).strftime('%Y-%m-%d %H:%M') if article.publish_time else "",
             "created_at": article.created_at.strftime('%Y-%m-%d %H:%M') if article.created_at else "",
             "content": process_content_images(article.content or ""),
-            "mp_name": feed.mp_name if feed else "未知公众号",
+            "mp_name": feed_name,
             "mp_id": article.mp_id,
-            "mp_cover": Web.get_image_url(feed.mp_cover) if feed else "",
-            "mp_intro": feed.mp_intro if feed else "",
+            "mp_cover": feed_cover,
+            "mp_intro": feed_intro,
         }
         
         # 构建面包屑
         breadcrumb = [
-            {"name": feed.mp_name, "url": f"/views/articles?mp_id={article_data['mp_id']}"},
+            {"name": feed_name, "url": f"/views/articles?mp_id={article_data['mp_id']}"},
             {"name": article_data["title"][:50] + "..." if len(article_data["title"]) > 50 else article_data["title"], "url": None}
         ]
         

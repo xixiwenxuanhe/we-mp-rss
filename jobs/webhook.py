@@ -48,19 +48,24 @@ def send_message(hook: MessageWebHook) -> str:
     message = parser.render(data)
     # 这里可以添加发送消息的具体实现
     print("发送消息:", message)
-    notice(hook.task.web_hook_url, hook.task.name, message)
+    try:
+        notice(hook.task.web_hook_url, hook.task.name, message)
+    except Exception as e:
+        logger.error(f"发送消息失败: {e}")
+        raise ValueError(f"发送消息失败: {e}")
     return message
 
-def call_webhook(hook: MessageWebHook) -> str:
+def call_webhook(hook: MessageWebHook, is_test: bool = False) -> str:
     """
     调用webhook接口发送数据
-    
+
     参数:
         hook: MessageWebHook对象，包含任务、订阅源和文章信息
-        
+        is_test: 是否为测试模式，测试模式下使用模拟数据
+
     返回:
         str: 调用结果信息
-        
+
     异常:
         ValueError: 当webhook调用失败时抛出
     """
@@ -91,31 +96,48 @@ def call_webhook(hook: MessageWebHook) -> str:
   "now": "{{ now }}"
 }
 """
-    
+
     # 检查template是否需要content
     template_needs_content = "content" in template.lower()
-    
+
     # 根据content_format处理内容
     content_format = cfg.get("webhook.content_format", "html")
     logger.info(f'Content将以{content_format}格式发送')
-    processed_articles = []
-    for article in hook.articles:
-        if isinstance(article, dict) and "content" in article and article["content"]:
-            processed_article = article.copy()
-            # 只有template需要content时才进行格式转换
-            if template_needs_content:
-              processed_article["content"] = format_content(processed_article["content"], content_format)
-            processed_articles.append(processed_article)
-        else:
-            processed_articles.append(article)
-    
+
+    # 测试模式下使用模拟数据
+    if is_test:
+        from datetime import timedelta
+        logger.info("使用模拟数据测试webhook")
+        mock_article = {
+            "id": "test-article-001",
+            "mp_id": hook.feed.id if hook.feed else "test-mp-id",
+            "title": "测试文章标题",
+            "pic_url": "https://via.placeholder.com/300x200",
+            "url": "https://example.com/test-article",
+            "description": "这是一篇测试文章的描述内容，用于测试webhook功能是否正常。",
+            "publish_time": (datetime.now() - timedelta(minutes=30)).strftime("%Y-%m-%d %H:%M:%S"),
+            "content": "<p>这是测试文章的正文内容。</p>"
+        }
+        processed_articles = [mock_article]
+    else:
+        processed_articles = []
+        for article in hook.articles:
+            if isinstance(article, dict) and "content" in article and article["content"]:
+                processed_article = article.copy()
+                # 只有template需要content时才进行格式转换
+                if template_needs_content:
+                    processed_article["content"] = format_content(processed_article["content"], content_format)
+                processed_articles.append(processed_article)
+            else:
+                processed_articles.append(article)
+
     data = {
         "feed": hook.feed,
         "articles": processed_articles,
         "task": hook.task,
         "now": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
-   
+
    # 预处理content字段
     import json
     def process_content(content):
@@ -125,7 +147,7 @@ def call_webhook(hook: MessageWebHook) -> str:
         json_escaped = json.dumps(content, ensure_ascii=False)
         # 去掉外层引号避免重复
         return json_escaped[1:-1]
-    
+
     # 处理articles中的content字段，进行JSON转义
     if "articles" in data:
         for i, article in enumerate(data["articles"]):
@@ -134,40 +156,63 @@ def call_webhook(hook: MessageWebHook) -> str:
                     data["articles"][i]["content"] = process_content(article["content"])
             elif hasattr(article, "content"):
                 setattr(data["articles"][i], "content", process_content(getattr(article, "content")))
-    
+
     parser = TemplateParser(template)
-    
+
     payload = parser.render(data)
-    # logger.info(payload)
+    logger.info(f'Webhook payload: {payload}')
 
     # 检查web_hook_url是否为空
     if not hook.task.web_hook_url:
         logger.error("web_hook_url为空")
-        return 
+        return
     # 发送webhook请求
     import requests
+    import json
+
+    # 构建请求头
+    headers = {"Content-Type": "application/json"}
+    if hook.task.headers:
+        try:
+            custom_headers = json.loads(hook.task.headers)
+            headers.update(custom_headers)
+        except json.JSONDecodeError as e:
+            logger.warning(f"解析headers失败: {e}")
+
+    # 构建cookies
+    cookies = None
+    if hook.task.cookies:
+        cookies = {}
+        # 解析cookie字符串 (格式: key1=value1; key2=value2)
+        for cookie_pair in hook.task.cookies.split(';'):
+            cookie_pair = cookie_pair.strip()
+            if '=' in cookie_pair:
+                key, value = cookie_pair.split('=', 1)
+                cookies[key.strip()] = value.strip()
+
     # print_success(f"发送webhook请求{payload}")
     try:
         response = requests.post(
             hook.task.web_hook_url,
             data=payload,
-            headers={"Content-Type": "application/json"}
+            headers=headers,
+            cookies=cookies
         )
         response.raise_for_status()
         return "Webhook调用成功"
     except Exception as e:
         raise ValueError(f"Webhook调用失败: {str(e)}")
 
-def web_hook(hook:MessageWebHook):
+def web_hook(hook:MessageWebHook, is_test:bool = False):
     """
     根据消息类型路由到对应的处理函数
-    
+
     参数:
         hook: MessageWebHook对象，包含任务、订阅源和文章信息
-        
+        is_test: 是否为测试模式，测试模式下使用模拟数据
     返回:
         对应处理函数的返回结果
-        
+
     异常:
         ValueError: 当消息类型未知时抛出
     """
@@ -177,36 +222,58 @@ def web_hook(hook:MessageWebHook):
         if len(hook.articles)<=0:
             # raise ValueError("没有更新到文章")
             logger.warning("没有更新到文章")
-            return 
+            return
         for article in hook.articles:
             if isinstance(article, dict):
                 # 如果是字典类型，直接使用
+                def process_field_value(field_name, article):
+                    value = article.get(field_name, "")
+                    if field_name == "publish_time" and value:
+                        # 如果已经是格式化的字符串，直接返回
+                        if isinstance(value, str) and "-" in value and ":" in value:
+                            return value
+                        # 如果是时间戳整数，转换为字符串
+                        try:
+                            if isinstance(value, (int, float)):
+                                return datetime.fromtimestamp(value).strftime("%Y-%m-%d %H:%M:%S")
+                        except (ValueError, TypeError, OSError):
+                            pass
+                        return value
+                    return value
+
                 processed_article = {
-                    field.name: (
-                        datetime.fromtimestamp(article[field.name]).strftime("%Y-%m-%d %H:%M:%S")
-                        if field.name == "publish_time" and field.name in article
-                        else article.get(field.name, "")
-                    )
+                    field.name: process_field_value(field.name, article)
                     for field in Article.__table__.columns
                 }
             else:
                 # 如果是Article对象，使用getattr获取属性
+                def process_field_value_obj(field_name, article):
+                    value = getattr(article, field.name, "")
+                    if field_name == "publish_time" and value:
+                        # 如果已经是格式化的字符串，直接返回
+                        if isinstance(value, str) and "-" in value and ":" in value:
+                            return value
+                        # 如果是时间戳整数，转换为字符串
+                        try:
+                            if isinstance(value, (int, float)):
+                                return datetime.fromtimestamp(value).strftime("%Y-%m-%d %H:%M:%S")
+                        except (ValueError, TypeError, OSError):
+                            pass
+                        return value
+                    return value
+
                 processed_article = {
-                    field.name: (
-                        datetime.fromtimestamp(getattr(article, field.name)).strftime("%Y-%m-%d %H:%M:%S")
-                        if field.name == "publish_time"
-                        else getattr(article, field.name)
-                    )
+                    field.name: process_field_value_obj(field.name, article)
                     for field in Article.__table__.columns
                 }
             processed_articles.append(processed_article)
-        
+
         hook.articles = processed_articles
-        
+
         if hook.task.message_type == 0:  # 发送消息
             return send_message(hook)
         elif hook.task.message_type == 1:  # 调用webhook
-            return call_webhook(hook)
+            return call_webhook(hook, is_test)
         else:
             raise ValueError(f"未知的消息类型: {hook.task.message_type}")
     except Exception as e:

@@ -9,6 +9,7 @@ from core.config import cfg
 from apis.base import format_search_kw
 from core.print import print_warning, print_info, print_error, print_success
 from core.cache import clear_cache_pattern
+from core.models.feed import FEATURED_MP_ID, FEATURED_MP_NAME
 from tools.fix import fix_article
 from datetime import datetime
 from driver.wxarticle import WXArticleFetcher
@@ -204,6 +205,49 @@ async def toggle_article_read_status(
                 message=f"更新文章阅读状态失败: {str(e)}"
             )
         )
+
+@router.put("/{article_id}/favorite", summary="改变文章收藏状态")
+async def toggle_article_favorite_status(
+    article_id: str,
+    is_favorite: bool = Query(..., description="收藏状态: true为收藏, false为取消收藏"),
+    current_user: dict = Depends(get_current_user_or_ak)
+):
+    session = DB.get_session()
+    try:
+        from core.models.article import Article
+
+        article = session.query(Article).filter(Article.id == article_id).first()
+        if not article:
+            raise HTTPException(
+                status_code=fast_status.HTTP_404_NOT_FOUND,
+                detail=error_response(
+                    code=40401,
+                    message="文章不存在"
+                )
+            )
+
+        article.is_favorite = 1 if is_favorite else 0
+        session.commit()
+
+        clear_cache_pattern("articles_list")
+        clear_cache_pattern("article_detail")
+        clear_cache_pattern("tag_detail")
+
+        return success_response({
+            "message": "文章已收藏" if is_favorite else "已取消收藏",
+            "is_favorite": is_favorite
+        })
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(
+            status_code=fast_status.HTTP_406_NOT_ACCEPTABLE,
+            detail=error_response(
+                code=50001,
+                message=f"更新文章收藏状态失败: {str(e)}"
+            )
+        )
     
 @router.delete("/clean_duplicate_articles", summary="清理重复文章")
 async def clean_duplicate(
@@ -234,6 +278,7 @@ async def get_articles(
     status: str = Query(None),
     search: str = Query(None),
     mp_id: str = Query(None),
+    only_favorite: bool = Query(False),
     has_content:bool=Query(False),
     current_user: dict = Depends(get_current_user_or_ak)
 ):
@@ -251,6 +296,8 @@ async def get_articles(
             query = query.filter(Article.status != DATA_STATUS.DELETED)
         if mp_id:
             query = query.filter(Article.mp_id == mp_id)
+        if only_favorite:
+            query = query.filter(Article.is_favorite == 1)
         if search:
             query = query.filter(
                format_search_kw(search)
@@ -271,14 +318,18 @@ async def get_articles(
         mp_names = {}
         for article in articles:
             if article.mp_id and article.mp_id not in mp_names:
-                feed = session.query(Feed).filter(Feed.id == article.mp_id).first()
-                mp_names[article.mp_id] = feed.mp_name if feed else "未知公众号"
+                if article.mp_id == FEATURED_MP_ID:
+                    mp_names[article.mp_id] = FEATURED_MP_NAME
+                else:
+                    feed = session.query(Feed).filter(Feed.id == article.mp_id).first()
+                    mp_names[article.mp_id] = feed.mp_name if feed else "未知公众号"
         
         # 合并公众号名称到文章列表
         article_list = []
         for article in articles:
             article_dict = article.__dict__
             article_dict["mp_name"] = mp_names.get(article.mp_id, "未知公众号")
+            article_dict["is_favorite"] = int(getattr(article, "is_favorite", 0) or 0)
             article_list.append(article_dict)
         
         from .base import success_response

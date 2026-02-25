@@ -18,6 +18,7 @@
         <a-card style="border:0">
           <div class="search-bar">
             <a-input-search v-model="searchText" placeholder="搜索文章标题" @search="handleSearch" @keyup.enter="handleSearch" allow-clear />
+            <a-checkbox v-model="onlyFavorite" @change="handleFavoriteFilterChange">仅显示已收藏</a-checkbox>
           </div>
 
           <a-list :data="articles" :loading="loading" bordered>
@@ -54,10 +55,19 @@
                     <a-typography-text type="secondary" strong> {{ formatDateTime(item.created_at) }}</a-typography-text>
                   </template>
                 </a-list-item-meta>
-                <a-button type="text" @click="viewArticle(item)">
-                  <template #icon><icon-eye /></template>
-                  查看
-                </a-button>
+                <a-space>
+                  <a-button type="text" @click="toggleFavoriteStatus(item)">
+                    <template #icon>
+                      <icon-star-fill v-if="item.is_favorite === 1" />
+                      <icon-star v-else />
+                    </template>
+                    {{ item.is_favorite === 1 ? '已收藏' : '收藏' }}
+                  </a-button>
+                  <a-button type="text" @click="viewArticle(item)">
+                    <template #icon><icon-eye /></template>
+                    查看
+                  </a-button>
+                </a-space>
               </a-list-item>
             </template>
           </a-list>
@@ -101,7 +111,7 @@
               {{ item.name || item.mp_name }}
             </a-typography-text>
           </div>
-          <a-space v-if="activeMpId === item.id && item.id != ''">
+          <a-space v-if="activeMpId === item.id && canManageMp(item.id)">
             <a-button size="mini" type="text" @click="$event.stopPropagation(); copyMpId(item.id)">
               <template #icon><icon-copy /></template>
             </a-button>
@@ -155,17 +165,20 @@
 import { formatDateTime,formatTimestamp } from '@/utils/date'
 import { Avatar } from '@/utils/constants'
 import { ref, onMounted, computed } from 'vue'
-import { IconCheck, IconClose, IconStop, IconPlayArrow, IconCopy } from '@arco-design/web-vue/es/icon'
-import { getArticles, getArticleDetail,getPrevArticle,getNextArticle,toggleArticleReadStatus } from '@/api/article'
+import { IconCheck, IconClose, IconStop, IconPlayArrow, IconCopy, IconStar, IconStarFill } from '@arco-design/web-vue/es/icon'
+import { getArticles, getArticleDetail, toggleArticleReadStatus, toggleArticleFavoriteStatus } from '@/api/article'
 import { getSubscriptions, toggleMpStatus as toggleMpStatusApi } from '@/api/subscription'
 import { Message } from '@arco-design/web-vue'
 import { ProxyImage } from '@/utils/constants'
+const FEATURED_MP_ID = 'MP_WXS_FEATURED_ARTICLES'
+const FEATURED_MP_NAME = '精选文章'
 const articles = ref([])
 const loading = ref(false)
 const mpList = ref([])
 const mpLoading = ref(false)
 const activeMpId = ref('')
 const searchText = ref('')
+const onlyFavorite = ref(false)
 const mpListVisible = ref(false)
 const mpFilterType = ref('active') // 'active' | 'disabled' | 'all'
 
@@ -183,6 +196,7 @@ const activeFeed = ref({
   id: "",
   name: "全部",
 })
+const canManageMp = (mpId: string) => mpId !== '' && mpId !== FEATURED_MP_ID
 
 const showMpList = () => {
   mpListVisible.value = true
@@ -209,20 +223,23 @@ const fetchArticles = async (isLoadMore = false) => {
       page: isLoadMore ? pagination.value.current : 0,
       pageSize: pagination.value.pageSize,
       search: searchText.value,
-      mp_id: activeMpId.value
+      mp_id: activeMpId.value,
+      only_favorite: onlyFavorite.value
     })
 
     if (isLoadMore) {
       articles.value = [...articles.value, ...(res.list || []).map(item => ({
         ...item,
         mp_name: item.mp_name || item.account_name || '未知公众号',
-        url: item.url || "https://mp.weixin.qq.com/s/" + item.id
+        url: item.url || "https://mp.weixin.qq.com/s/" + item.id,
+        is_favorite: item.is_favorite === 1 ? 1 : 0
       }))]
     } else {
       articles.value = (res.list || []).map(item => ({
         ...item,
         mp_name: item.mp_name || item.account_name || '未知公众号',
-        url: item.url || "https://mp.weixin.qq.com/s/" + item.id
+        url: item.url || "https://mp.weixin.qq.com/s/" + item.id,
+        is_favorite: item.is_favorite === 1 ? 1 : 0
       }))
     }
     
@@ -247,6 +264,15 @@ const handlePageChange = (page: number, pageSize: number) => {
 
 const handleSearch = () => {
   pagination.value.current = 1
+  articles.value = []
+  hasMore.value = true
+  fetchArticles()
+}
+
+const handleFavoriteFilterChange = () => {
+  pagination.value.current = 1
+  articles.value = []
+  hasMore.value = true
   fetchArticles()
 }
  const processedContent = (record: any) => {
@@ -337,14 +363,40 @@ const fetchMpList = async () => {
       page: 0,
       pageSize: 100
     })
-    
-    mpList.value = res.list.map(item => ({
+
+    const rawList = (res.list || []).map(item => ({
       id: item.id || item.mp_id,
       name: item.name || item.mp_name,
       avatar: item.avatar || item.mp_cover || '',
       mp_intro: item.mp_intro || item.mp_intro || '',
       status: item.status ?? 1
     }))
+    const uniqueMap = new Map()
+    rawList.forEach(item => {
+      if (item?.id) {
+        uniqueMap.set(item.id, item)
+      }
+    })
+    const featuredItem = uniqueMap.get(FEATURED_MP_ID) || {
+      id: FEATURED_MP_ID,
+      name: FEATURED_MP_NAME,
+      avatar: '/static/logo.svg',
+      mp_intro: '手动添加的公众号单篇文章会归类到这里。',
+      status: 1
+    }
+    uniqueMap.delete(FEATURED_MP_ID)
+    const baseList = Array.from(uniqueMap.values())
+    mpList.value = [
+      {
+        id: '',
+        name: '全部',
+        avatar: '/static/logo.svg',
+        mp_intro: '显示所有公众号文章',
+        status: 1
+      },
+      featuredItem,
+      ...baseList
+    ]
   } catch (error) {
     console.error('获取公众号列表错误:', error)
   } finally {
@@ -371,8 +423,36 @@ const toggleReadStatus = async (record: any) => {
   }
 };
 
+const toggleFavoriteStatus = async (record: any) => {
+  try {
+    const newFavoriteStatus = record.is_favorite === 1 ? false : true
+    await toggleArticleFavoriteStatus(record.id, newFavoriteStatus)
+
+    const index = articles.value.findIndex(item => item.id === record.id)
+    if (index !== -1) {
+      articles.value[index].is_favorite = newFavoriteStatus ? 1 : 0
+    }
+
+    Message.success(newFavoriteStatus ? '收藏成功' : '已取消收藏')
+
+    if (onlyFavorite.value && !newFavoriteStatus) {
+      pagination.value.current = 1
+      articles.value = []
+      hasMore.value = true
+      fetchArticles()
+    }
+  } catch (error) {
+    console.error('更新收藏状态失败:', error)
+    Message.error('更新收藏状态失败')
+  }
+}
+
 // 切换公众号状态
 const toggleMpStatus = async (mpId: string, newStatus: number) => {
+  if (mpId === FEATURED_MP_ID) {
+    Message.warning('系统内置分组不允许修改状态')
+    return
+  }
   try {
     await toggleMpStatusApi(mpId, newStatus);
     Message.success(newStatus === 0 ? '公众号已禁用' : '公众号已启用');
@@ -425,6 +505,10 @@ onMounted(() => {
 }
 
 .search-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
   margin-bottom: 20px;
 }
 

@@ -14,6 +14,7 @@ class ArticleBase(Base):
     updated_at = Column(DateTime)  
     is_export = Column(Integer)
     is_read = Column(Integer, default=0)
+    is_favorite = Column(Integer, default=0)
 class Article(ArticleBase):
     content = Column(Text)
     
@@ -32,5 +33,6 @@ class Article(ArticleBase):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'is_export': self.is_export,
-            'is_read': self.is_read
+            'is_read': self.is_read,
+            'is_favorite': self.is_favorite
         }

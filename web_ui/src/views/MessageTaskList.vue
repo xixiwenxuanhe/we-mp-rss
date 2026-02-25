@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
-import { listMessageTasks, deleteMessageTask,FreshJobApi,FreshJobByIdApi,RunMessageTask } from '@/api/messageTask'
+import { listMessageTasks, deleteMessageTask,FreshJobApi,FreshJobByIdApi,RunMessageTask,TestMessageTask } from '@/api/messageTask'
 import type { MessageTask } from '@/types/messageTask'
 import { useRouter } from 'vue-router'
 import { Message, Modal } from '@arco-design/web-vue'
@@ -184,22 +184,41 @@ const handleDelete = async (id: number) => {
   })
 }
 const runTask = async (id: number,isTest:boolean=false) => {
-  Modal.confirm({
-    title: '确认执行',
-    content: '确定要执行这条消息任务吗？',
-    okText: '确认',
-    cancelText: '取消',
-    onOk: async () => {
-      try {
-        let res = await RunMessageTask(id,isTest)
-        Message.success(res?.message||'执行成功')
-      } catch (error) {
-        console.error(error)
-        Message.error('执行失败')
-        console.log(error)
+  if (isTest) {
+    Modal.confirm({
+      title: '确认测试',
+      content: '确定要测试这条消息任务吗？将发送一条测试消息。',
+      okText: '确认',
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          let res = await TestMessageTask(id)
+          Message.success(res?.message||'测试成功')
+        } catch (error) {
+          console.error(error)
+          Message.error('测试失败')
+          console.log(error)
+        }
       }
-    }
-  })
+    })
+  } else {
+    Modal.confirm({
+      title: '确认执行',
+      content: '确定要执行这条消息任务吗？',
+      okText: '确认',
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          let res = await RunMessageTask(id,isTest)
+          Message.success(res?.message||'执行成功')
+        } catch (error) {
+          console.error(error)
+          Message.error('执行失败')
+          console.log(error)
+        }
+      }
+    })
+  }
 }
 
 onMounted(() => {
