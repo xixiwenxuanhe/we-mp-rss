@@ -9,11 +9,15 @@ export const listMessageTasks = (params?: { offset?: number; limit?: number }) =
   }
   return http.get<MessageTask>('/wx/message_tasks', { params: apiParams })
 }
-export const getMessageTask = (id: string) => {
-  return http.get<MessageTask>(`/wx/message_tasks/${id}`)
+export const getMessageTask = (id: string): Promise<MessageTask> => {
+  return http.get<any>(`/wx/message_tasks/${id}`) as any
 }
 export const RunMessageTask = (id: string,isTest:boolean=false) => {
   return http.get<MessageTask>(`/wx/message_tasks/${id}/run?isTest=${isTest}`)
+}
+
+export const TestMessageTask = (id: string) => {
+  return http.post(`/wx/message_tasks/message/test/${id}`)
 }
 
 export const createMessageTask = (data: MessageTaskUpdate) => {

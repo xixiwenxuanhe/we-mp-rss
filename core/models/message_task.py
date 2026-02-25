@@ -20,6 +20,10 @@ class MessageTask(Base):
     message_template = Column(Text, nullable=False)
     # 定义发送接口
     web_hook_url = Column(String(500), nullable=False)
+    # 定义请求头，JSON格式存储
+    headers = Column(Text, nullable=True)
+    # 定义Cookie，用于认证
+    cookies = Column(Text, nullable=True)
     # 定义需要通知的微信公众号ID集合
     mps_id = Column(Text, nullable=False)
     # 定义 cron_exp 表达式

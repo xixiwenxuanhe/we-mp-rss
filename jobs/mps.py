@@ -36,31 +36,48 @@ from core.models.message_task import MessageTask
 # from core.queue import TaskQueue
 from .webhook import web_hook
 interval=int(cfg.get("interval",60)) # 每隔多少秒执行一次
-def do_job(mp=None,task:MessageTask=None):
+def do_job(mp=None,task:MessageTask=None,isTest=False):
         # TaskQueue.add_task(test,info=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         # print("执行任务", task.mps_id)
-        print("执行任务")
+        print(f"执行任务 (测试模式: {isTest})")
         all_count=0
-        wx=WxGather().Model()
-        try:
-            wx.get_Articles(mp.faker_id,CallBack=UpdateArticle,Mps_id=mp.id,Mps_title=mp.mp_name, MaxPage=1,Over_CallBack=Update_Over,interval=interval)
-        except Exception as e:
-            print_error(e)
-            # raise
-        finally:
-            count=wx.all_count()
-            all_count+=count
-            from jobs.webhook import MessageWebHook 
-            tms=MessageWebHook(task=task,feed=mp,articles=wx.articles)
-            web_hook(tms)
-            print_success(f"任务({task.id})[{mp.mp_name}]执行成功,{count}成功条数")
+        if isTest:
+            # 测试模式使用模拟数据
+            from datetime import datetime, timedelta
+            mock_articles = [{
+                "id": "test-article-001",
+                "mp_id": mp.id,
+                "title": "测试文章标题",
+                "pic_url": "https://via.placeholder.com/300x200",
+                "url": "https://example.com/test-article",
+                "description": "这是一篇测试文章的描述内容，用于测试webhook功能是否正常。",
+                "publish_time": (datetime.now() - timedelta(minutes=30)).strftime("%Y-%m-%d %H:%M:%S"),
+                "content": "<p>这是测试文章的正文内容。</p>"
+            }]
+            count = 1
+        else:
+            wx=WxGather().Model()
+            try:
+                wx.get_Articles(mp.faker_id,CallBack=UpdateArticle,Mps_id=mp.id,Mps_title=mp.mp_name, MaxPage=1,Over_CallBack=Update_Over,interval=interval)
+            except Exception as e:
+                print_error(e)
+                # raise
+            finally:
+                count=wx.all_count()
+                mock_articles = wx.articles
+                all_count+=count
+
+        from jobs.webhook import MessageWebHook
+        tms=MessageWebHook(task=task,feed=mp,articles=mock_articles)
+        web_hook(tms, is_test=isTest)
+        print_success(f"任务({task.id})[{mp.mp_name}]执行成功,{count}成功条数")
 
 from core.queue import TaskQueue
 def add_job(feeds:list[Feed]=None,task:MessageTask=None,isTest=False):
     if isTest:
         TaskQueue.clear_queue()
     for feed in feeds:
-        TaskQueue.add_task(do_job,feed,task)
+        TaskQueue.add_task(do_job,feed,task,isTest)
         if isTest:
             print(f"测试任务，{feed.mp_name}，加入队列成功")
             reload_job()
