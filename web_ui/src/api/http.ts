@@ -47,15 +47,15 @@ http.interceptors.response.use(
     return Promise.reject(response.data)
   },
   error => {
-     if(error.status==401){
+     if(error.response?.status==401){
       router.push("/login")
-    } 
+    }
     // console.log(error)
     // 统一错误处理
-    const errorMsg =error?.response?.data?.message || 
+    const errorMsg =error?.response?.data?.message ||
                     error?.response?.data?.detail?.message ||
-                    error?.response?.data?.detail || 
-                    error?.message || 
+                    error?.response?.data?.detail ||
+                    error?.message ||
                     '请求错误'
     // Message.error(errorMsg)
     return Promise.reject(errorMsg)

@@ -143,15 +143,38 @@ def call_webhook(hook: MessageWebHook) -> str:
     # 检查web_hook_url是否为空
     if not hook.task.web_hook_url:
         logger.error("web_hook_url为空")
-        return 
+        return
     # 发送webhook请求
     import requests
+    import json
+
+    # 构建请求头
+    headers = {"Content-Type": "application/json"}
+    if hook.task.headers:
+        try:
+            custom_headers = json.loads(hook.task.headers)
+            headers.update(custom_headers)
+        except json.JSONDecodeError as e:
+            logger.warning(f"解析headers失败: {e}")
+
+    # 构建cookies
+    cookies = None
+    if hook.task.cookies:
+        cookies = {}
+        # 解析cookie字符串 (格式: key1=value1; key2=value2)
+        for cookie_pair in hook.task.cookies.split(';'):
+            cookie_pair = cookie_pair.strip()
+            if '=' in cookie_pair:
+                key, value = cookie_pair.split('=', 1)
+                cookies[key.strip()] = value.strip()
+
     # print_success(f"发送webhook请求{payload}")
     try:
         response = requests.post(
             hook.task.web_hook_url,
             data=payload,
-            headers={"Content-Type": "application/json"}
+            headers=headers,
+            cookies=cookies
         )
         response.raise_for_status()
         return "Webhook调用成功"

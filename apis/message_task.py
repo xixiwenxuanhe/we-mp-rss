@@ -146,7 +146,7 @@ async def run_message_task(
         tasks=run(task_id,isTest=isTest)
         count=0
         if not tasks:
-            raise HTTPException(status_code=404, detail="Message task not found")
+            raise HTTPException(status_code=404, detail="Message task not found or has been deactivated")
         else:
             import json
             for task in tasks:
@@ -176,6 +176,8 @@ class MessageTaskCreate(BaseModel):
     message_type: int=0
     cron_exp:str=""
     status: Optional[int] = 0
+    headers: Optional[str] = ""
+    cookies: Optional[str] = ""
 
 @router.post("", summary="创建消息任务", status_code=status.HTTP_201_CREATED)
 async def create_message_task(
@@ -205,7 +207,9 @@ async def create_message_task(
             mps_id=task_data.mps_id,
             message_type=task_data.message_type,
             name=task_data.name,
-            status=task_data.status if task_data.status is not None else 0
+            status=task_data.status if task_data.status is not None else 0,
+            headers=task_data.headers if task_data.headers is not None else "",
+            cookies=task_data.cookies if task_data.cookies is not None else ""
         )
         db.add(db_task)
         db.commit()
@@ -257,6 +261,10 @@ async def update_message_task(
             db_task.message_type = task_data.message_type
         if task_data.name is not None:
             db_task.name = task_data.name
+        if task_data.headers is not None:
+            db_task.headers = task_data.headers
+        if task_data.cookies is not None:
+            db_task.cookies = task_data.cookies
         db.commit()
         db.refresh(db_task)
         return success_response(data=db_task)
