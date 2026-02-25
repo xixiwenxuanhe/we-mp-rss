@@ -309,8 +309,16 @@ const columns = [
     ellipsis: true,
     render: ({ record }) => {
       const mp = mpList.value.find(item => item.id === record.mp_id);
-      return h('span', {
-        style: { color: 'var(--color-text-3)' }
+      return h('a', {
+        style: {
+          color: 'var(--color-link)',
+          cursor: 'pointer',
+          textDecoration: 'none'
+        },
+        onClick: (e: MouseEvent) => {
+          e.preventDefault()
+          handleMpClick(record.mp_id)
+        }
       }, record.mp_name || mp?.name || record.mp_id)
     }
   },

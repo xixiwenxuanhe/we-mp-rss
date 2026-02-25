@@ -44,7 +44,12 @@
                     </div>
                   </template>
                   <template #description>
-                    <a-typography-text strong :heading="2" @click="viewArticle(item)">{{ item.mp_name || '未知公众号' }}</a-typography-text>
+                    <a-typography-text
+                      strong
+                      :heading="2"
+                      style="color: rgb(var(--primary-6)); cursor: pointer"
+                      @click.stop="handleMpClick(item.mp_id)"
+                    >{{ item.mp_name || '未知公众号' }}</a-typography-text>
                     <a-typography-text type="secondary"> {{ item.description }}</a-typography-text>
                     <a-typography-text type="secondary" strong> {{ formatDateTime(item.created_at) }}</a-typography-text>
                   </template>
@@ -167,6 +172,9 @@ const handleMpSelect = () => {
 const handleMpClick = (mpId: string) => {
   activeMpId.value = mpId
   activeFeed.value = mpList.value.find(item => item.id === activeMpId.value) || { id: "", name: "全部" }
+  pagination.value.current = 1
+  articles.value = []
+  fetchArticles()
 }
 
 const fetchArticles = async (isLoadMore = false) => {
