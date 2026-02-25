@@ -14,7 +14,7 @@ def notice( webhook_url, title, text,notice_type: str=None):
     - text: 消息内容
     """
     if  len(str(webhook_url)) == 0:
-        print('未提供webhook_url')
+        raise ValueError('未提供webhook_url')
         return
     if 'qyapi.weixin.qq.com' in webhook_url:
         notice_type = 'wechat'
@@ -35,4 +35,4 @@ def notice( webhook_url, title, text,notice_type: str=None):
     elif notice_type == 'custom':
         send_custom_message(webhook_url, title, text)
     else:
-        print('不支持的通知类型')
+        raise ValueError(f'不支持的通知类型: {notice_type}')

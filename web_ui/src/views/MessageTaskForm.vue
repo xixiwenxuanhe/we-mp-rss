@@ -285,8 +285,7 @@ onMounted(() => {
 
 <style scoped>
 .message-task-form {
-  padding: 20px;
-  max-width: 800px;
+  width: 90%;
   margin: 0 auto;
 }
 

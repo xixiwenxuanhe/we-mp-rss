@@ -16,6 +16,10 @@ export const RunMessageTask = (id: string,isTest:boolean=false) => {
   return http.get<MessageTask>(`/wx/message_tasks/${id}/run?isTest=${isTest}`)
 }
 
+export const TestMessageTask = (id: string) => {
+  return http.post(`/wx/message_tasks/message/test/${id}`)
+}
+
 export const createMessageTask = (data: MessageTaskUpdate) => {
   return http.post('/wx/message_tasks', data)
 }
