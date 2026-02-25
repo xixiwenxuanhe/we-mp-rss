@@ -223,7 +223,6 @@ import { Avatar } from '@/utils/constants'
 import { translatePage, setCurrentLanguage } from '@/utils/translate';
 import { ref, onMounted, h, nextTick, watch, computed } from 'vue'
 import axios from 'axios'
-<<<<<<< HEAD
 import { IconApps, IconAtt, IconDelete, IconEdit, IconEye, IconRefresh, IconScan, IconWeiboCircleFill, IconWifi, IconCode, IconCheck, IconClose, IconStop, IconPlayArrow, IconCopy, IconPlus, IconDown, IconExport, IconImport, IconShareExternal } from '@arco-design/web-vue/es/icon'
 import { getArticles, deleteArticle as deleteArticleApi, ClearArticle, ClearDuplicateArticle, getArticleDetail, toggleArticleReadStatus, refreshArticle as refreshArticleApi, getRefreshArticleTaskStatus } from '@/api/article'
 import { ExportOPML, ExportMPS, ImportMPS } from '@/api/export'
@@ -447,7 +446,6 @@ const initIssourceUrl = () => {
 }
 
 // 监听 issourceUrl 变化并保存到 localStorage
-import { watch } from 'vue'
 watch(issourceUrl, (newValue) => {
   localStorage.setItem('issourceUrl', newValue.toString())
 }, { immediate: false })

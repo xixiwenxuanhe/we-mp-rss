@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, APIRouter, Depends
+from fastapi import FastAPI, Request, APIRouter, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -119,7 +119,7 @@ async def serve_vue_app(request: Request, path: str):
     if os.path.exists(index_path):
         return FileResponse(index_path)
     
-    return {"error": "Not Found"}, 404
+    raise HTTPException(status_code=404, detail="Not Found")
 
 @app.get("/",tags=['默认'],include_in_schema=False)
 async def serve_root(request: Request):

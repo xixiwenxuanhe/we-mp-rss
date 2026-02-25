@@ -366,7 +366,7 @@ async def delete_article(
 @router.post("/{article_id}/refresh", summary="刷新并重抓单篇文章")
 async def refresh_article(
     article_id: str,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_ak)
 ):
     try:
         session = DB.get_session()
@@ -411,7 +411,7 @@ async def refresh_article(
 @router.get("/refresh/tasks/{task_id}", summary="查询单篇刷新任务状态")
 async def get_refresh_task_status(
     task_id: str,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_or_ak)
 ):
     with _refresh_tasks_lock:
         task = _refresh_tasks.get(task_id)
