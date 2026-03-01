@@ -11,6 +11,7 @@ from bs4 import BeautifulSoup
 import os
 from datetime import datetime
 from core.config import cfg
+from dotenv import load_dotenv
 
 class WXArticleFetcher:
     """微信公众号文章获取器
@@ -24,6 +25,8 @@ class WXArticleFetcher:
     def __init__(self, wait_timeout: int = 10000):
         """初始化文章获取器"""
         self.wait_timeout = wait_timeout
+        load_dotenv()
+        self.proxy_url = (os.getenv("PROXY", "") or "").strip()
         self.controller = PlaywrightController()
         if not self.controller:
             raise Exception("WebDriver未初始化或未登录")
@@ -261,7 +264,7 @@ class WXArticleFetcher:
             body = ""
             retry_delay = None
             try:
-                self.controller.start_browser()
+                self.controller.start_browser(proxy_url=self.proxy_url)
                 self.page = self.controller.page
                 print_warning(f"Get:{url} Wait:{self.wait_timeout}")
                 self.controller.open_url(url)

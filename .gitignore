@@ -15,6 +15,7 @@ item
 .idea/
 .trae/
 .vscode/launch.json
+.env
 
 build/
 dist/

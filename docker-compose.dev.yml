@@ -1,5 +1,8 @@
 services:
   we-mp-rss:
+    build:
+      context: .
+      dockerfile: Dockerfile
     image: we-mp-rss:local
     container_name: we-mp-rss-dev
     restart: unless-stopped

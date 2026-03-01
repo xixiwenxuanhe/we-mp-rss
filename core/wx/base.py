@@ -2,6 +2,7 @@ import requests
 import json
 import re
 import time
+import os
 from core.models import Feed
 from core.db import DB
 from core.models.feed import Feed
@@ -12,6 +13,7 @@ from driver.success import setStatus
 from driver.wxarticle import Web
 from core.wait import Wait
 import random
+from dotenv import load_dotenv
 # 定义一些常见的 User-Agent
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
@@ -69,9 +71,18 @@ class WxGather:
         self.is_add=is_add
         self._cookies={}
         self.start_time = None  # 记录开始时间
+        load_dotenv()
         session=  requests.Session()
         timeout = (5, 10)  
         session.timeout = timeout
+        proxy_url = (os.getenv("PROXY", "") or "").strip()
+        if proxy_url:
+            session.proxies.update({
+                "http": proxy_url,
+                "https": proxy_url
+            })
+            safe_proxy_url = re.sub(r'//[^:@/]+:[^@/]+@', '//***:***@', proxy_url)
+            print_info(f"已启用抓取代理: {safe_proxy_url}")
         self.session=session
         self.get_token()
     def get_token(self):

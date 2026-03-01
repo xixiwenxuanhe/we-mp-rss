@@ -8,6 +8,7 @@ import random
 import uuid
 import asyncio
 from socket import timeout
+from urllib.parse import urlparse, unquote
 
 # 设置环境变量
 browsers_name = os.getenv("BROWSER_TYPE", "firefox")
@@ -57,7 +58,7 @@ class PlaywrightController:
                 self.browser is not None and 
                 self.context is not None and 
                 self.page is not None)
-    def start_browser(self, headless=True, mobile_mode=False, dis_image=True, browser_name=browsers_name, language="zh-CN", anti_crawler=True):
+    def start_browser(self, headless=True, mobile_mode=False, dis_image=True, browser_name=browsers_name, language="zh-CN", anti_crawler=True, proxy_url=""):
         try:
             # 使用线程锁确保线程安全
             if  str(os.getenv("NOT_HEADLESS",False))=="True":
@@ -86,6 +87,9 @@ class PlaywrightController:
             launch_options = {
                 "headless": headless
             }
+            proxy_config = self._parse_proxy_config(proxy_url)
+            if proxy_config:
+                launch_options["proxy"] = proxy_config
             
             # 在Windows上添加额外的启动选项
             if self.system == "windows":
@@ -295,9 +299,24 @@ class PlaywrightController:
         }, true);
         """)
 
-       
-
-   
+    def _parse_proxy_config(self, proxy_url: str):
+        """Parse proxy URL to Playwright proxy config."""
+        if not proxy_url:
+            return None
+        parsed = urlparse(proxy_url)
+        scheme = (parsed.scheme or "").lower()
+        if scheme not in ("http", "https", "socks5", "socks5h"):
+            return None
+        if not parsed.hostname or not parsed.port:
+            return None
+        proxy = {
+            "server": f"{scheme}://{parsed.hostname}:{parsed.port}"
+        }
+        if parsed.username:
+            proxy["username"] = unquote(parsed.username)
+        if parsed.password:
+            proxy["password"] = unquote(parsed.password)
+        return proxy
 
     def __del__(self):
         # 避免在程序退出时调用Close()，防止"can't register atexit after shutdown"错误

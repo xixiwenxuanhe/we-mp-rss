@@ -6,9 +6,9 @@ cd "$ROOT_DIR"
 
 CURRENT_COUNTRY="$(curl -fsS --max-time 5 ipinfo.io/country 2>/dev/null | tr -d '\r\n' || true)"
 if [[ -n "$CURRENT_COUNTRY" ]]; then
-  echo "[deploy] current country: $CURRENT_COUNTRY"
+  echo "[dev] current country: $CURRENT_COUNTRY"
 else
-  echo "[deploy] current country: unknown"
+  echo "[dev] current country: unknown"
 fi
 
 USE_PROXY=false
@@ -27,13 +27,13 @@ if [[ "$USE_PROXY" == "true" ]]; then
   HTTP_PROXY_VAL="http://host.docker.internal:7897"
   HTTPS_PROXY_VAL="http://host.docker.internal:7897"
   NO_PROXY_VAL="${NO_PROXY_VAL:-localhost,127.0.0.1,host.docker.internal}"
-  echo "[deploy] proxy forced to ${HTTP_PROXY_VAL}"
+  echo "[dev] proxy forced to ${HTTP_PROXY_VAL}"
 fi
 
-echo "[deploy] build frontend"
+echo "[dev] build frontend"
 bash web_ui/build.sh
 
-echo "[deploy] docker compose build"
+echo "[dev] docker compose (dev) build"
 if [[ "$USE_PROXY" == "true" ]]; then
   docker build \
     --add-host=host.docker.internal:host-gateway \
@@ -44,14 +44,14 @@ if [[ "$USE_PROXY" == "true" ]]; then
     --build-arg NO_PROXY="${NO_PROXY_VAL}" \
     .
 else
-  docker compose build
+  docker compose -f docker-compose.dev.yml build
 fi
 
-echo "[deploy] docker compose up -d"
+echo "[dev] docker compose (dev) up -d"
 if [[ "$USE_PROXY" == "true" ]]; then
-  docker compose up -d --no-build
+  docker compose -f docker-compose.dev.yml up -d --no-build
 else
-  docker compose up -d
+  docker compose -f docker-compose.dev.yml up -d
 fi
 
-echo "[deploy] done"
+echo "[dev] done"
