@@ -3,7 +3,7 @@ import redis
 from typing import Optional, Dict, Any
 from datetime import datetime
 from core.config import cfg
-from core.print import print_error, print_info
+from core.print import print_error, print_info, print_warning
 
 
 class RedisClient:
@@ -159,38 +159,52 @@ class RedisClient:
         Returns:
             统计信息字典
         """
+        # 默认返回值
+        default_stats = {
+            "date": date or datetime.now().strftime("%Y-%m-%d"),
+            "total": 0,
+            "urls": {},
+            "mp_stats": {},
+            "recent_logs": []
+        }
+        
         if not self.is_connected:
-            return {"error": "Redis未连接"}
+            print_warning("Redis未连接，返回默认统计信息")
+            return default_stats
             
         try:
             if date is None:
                 date = datetime.now().strftime("%Y-%m-%d")
                 
             # 获取总计数
-            total = self._client.get(f"werss:env_exception:total:{date}") or "0"
+            total = self._client.get(f"werss:env_exception:total:{date}")
+            total = int(total) if total else 0
             
             # 获取URL列表
             url_key = f"werss:env_exception:url:{date}"
-            urls = self._client.hgetall(url_key)
+            urls = self._client.hgetall(url_key) or {}
             
             # 获取公众号统计
             mp_key = f"werss:env_exception:mp:{date}"
-            mp_stats = self._client.hgetall(mp_key)
+            mp_stats = self._client.hgetall(mp_key) or {}
             
             # 获取最近日志
-            logs = self._client.lrange("werss:env_exception:logs", 0, 99)  # 最近100条
+            logs = self._client.lrange("werss:env_exception:logs", 0, 99) or []  # 最近100条
             
             return {
                 "date": date,
-                "total": int(total),
+                "total": total,
                 "urls": urls,
                 "mp_stats": mp_stats,
                 "recent_logs": logs
             }
             
+        except redis.exceptions.ConnectionError as e:
+            print_error(f"Redis连接错误: {e}")
+            return default_stats
         except Exception as e:
             print_error(f"获取环境异常统计失败: {e}")
-            return {"error": str(e)}
+            return default_stats
 
 
 # 全局单例实例
