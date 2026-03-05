@@ -259,6 +259,8 @@ class WXArticleFetcher:
         
             self.page = self.controller.page
             print_warning(f"Get:{url} Wait:{self.wait_timeout}")
+            if cfg.get("proxy.deno_url","")!="" and cfg.get("proxy.enable",False):
+                url=cfg.get("proxy.deno_url")+"/fetch?url="+url
             self.controller.open_url(url)
             page = self.page
             content=""
